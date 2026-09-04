@@ -11,6 +11,7 @@ const SETTINGS = {
   sourceCatalogUrl: 'https://docs.google.com/spreadsheets/d/1FelOidNHL1bqSaKeycZux1eQcDyrosONFC_qWVTYoog/export?format=csv',
   timezone: 'Europe/Madrid',
   tracksPerSeason: 4,
+  maxCustomTracksPerSeason: 1,
   historyMonthsToAvoid: 2,
   chanceOf200cc: 0.2,
   pointsByPosition: [10, 7, 5, 3, 2, 1],
@@ -246,7 +247,16 @@ function generateSeason_(year, monthIndex) {
   if (!chosenWii) throw new Error('No se ha podido encontrar una pista Wii original disponible.');
 
   const remaining = shuffle_(pool.filter(function (track) { return track.trackId !== chosenWii.trackId; }));
-  const chosen = [chosenWii].concat(remaining.slice(0, SETTINGS.tracksPerSeason - 1));
+  const chosen = [chosenWii];
+  let customCount = 0;
+  remaining.forEach(function (track) {
+    if (chosen.length >= SETTINGS.tracksPerSeason) return;
+    if (isCustomTrack_(track)) {
+      if (customCount >= SETTINGS.maxCustomTracksPerSeason) return;
+      customCount += 1;
+    }
+    chosen.push(track);
+  });
   if (chosen.length !== SETTINGS.tracksPerSeason) throw new Error('No hay suficientes pistas para generar la temporada.');
 
   const configuredChance = config.CHANCE_OF_200CC;
@@ -794,6 +804,10 @@ function sourceCategory_(sheetName, isWiiOriginal) {
   if (/custom/i.test(String(sheetName || ''))) return 'custom';
   if (isWiiOriginal) return 'wii-original';
   return 'retro';
+}
+
+function isCustomTrack_(track) {
+  return String(track.category || '').toLowerCase() === 'custom';
 }
 
 function detectConsole_(trackName) {

@@ -59,6 +59,7 @@ Si la hoja oficial cambia sus columnas, revisa `sourceCatalogUrl` y el mapeo de 
 `Generar temporada actual` crea cuatro pistas y no vuelve a sortearlas si la temporada ya existe. Cada temporada incluye:
 
 - Al menos una pista original de Wii.
+- Como máximo una pista custom.
 - 150cc por defecto.
 - Un máximo de una pista de 200cc, con una probabilidad configurable del 20%.
 - Una pista estrella elegida al azar que duplica sus puntos.
