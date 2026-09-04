@@ -57,6 +57,7 @@ function onOpen() {
     .addItem('Crear formulario de tiempos', 'setupSubmissionForm')
     .addItem('Actualizar opciones del formulario', 'refreshSubmissionForm')
     .addItem('Instalar sincronización diaria', 'installAutomation')
+    .addItem('Ejecutar automatización mensual ahora', 'runMonthlyAutomation')
     .addToUi();
 }
 
@@ -179,7 +180,7 @@ function syncRetroRewindCatalog() {
 function generateCurrentSeason() {
   const now = new Date();
   const current = Utilities.formatDate(now, SETTINGS.timezone, 'yyyy-MM').split('-').map(Number);
-  generateSeason_(current[0], current[1] - 1);
+  generateSeason_(current[0], current[1] - 1, true);
 }
 
 function resetCurrentSeason() {
@@ -204,7 +205,7 @@ function resetCurrentSeason() {
   deleteRowsByValue_(getSheet_(SETTINGS.sheetNames.times), 'seasonId', seasonId);
   deleteRowsByValue_(getSheet_(SETTINGS.sheetNames.seasonTracks), 'seasonId', seasonId);
   deleteRowsByValue_(seasonSheet, 'seasonId', seasonId);
-  generateSeason_(current[0], current[1] - 1);
+  generateSeason_(current[0], current[1] - 1, true);
 
   if (getConfig_().FORM_ID) refreshSubmissionForm();
 }
@@ -213,10 +214,10 @@ function generateNextSeason() {
   const now = new Date();
   const current = Utilities.formatDate(now, SETTINGS.timezone, 'yyyy-MM').split('-').map(Number);
   const next = new Date(current[0], current[1], 1);
-  generateSeason_(next.getFullYear(), next.getMonth());
+  generateSeason_(next.getFullYear(), next.getMonth(), true);
 }
 
-function generateSeason_(year, monthIndex) {
+function generateSeason_(year, monthIndex, showAlert) {
   const seasonId = year + '-' + String(monthIndex + 1).padStart(2, '0');
   const seasonSheet = getSheet_(SETTINGS.sheetNames.seasons);
   const existing = readRows_(seasonSheet).some(function (row) { return row.seasonId === seasonId; });
@@ -291,9 +292,11 @@ function generateSeason_(year, monthIndex) {
     ]);
   });
 
-  SpreadsheetApp.getUi().alert(
-    'Temporada ' + seasonId + ' generada: ' + chosen.map(function (track) { return track.name; }).join(', ')
-  );
+  if (showAlert !== false) {
+    SpreadsheetApp.getUi().alert(
+      'Temporada ' + seasonId + ' generada: ' + chosen.map(function (track) { return track.name; }).join(', ')
+    );
+  }
 }
 
 function setupSubmissionForm() {
@@ -358,7 +361,7 @@ function setupSubmissionForm() {
   SpreadsheetApp.getUi().alert('Formulario creado:\n' + form.getPublishedUrl());
 }
 
-function refreshSubmissionForm() {
+function refreshSubmissionForm(showAlert) {
   ensureSheet_(SpreadsheetApp.getActiveSpreadsheet(), SETTINGS.sheetNames.players, SETTINGS.headers.Players);
   const formId = getConfig_().FORM_ID;
   if (!formId) throw new Error('Todavía no existe un formulario. Ejecuta Crear formulario de tiempos.');
@@ -387,7 +390,7 @@ function refreshSubmissionForm() {
     return player.playerId + ' | ' + player.displayName;
   }));
   trackItem.asListItem().setChoiceValues(trackChoices);
-  SpreadsheetApp.getUi().alert('Opciones del formulario actualizadas.');
+  if (showAlert !== false) SpreadsheetApp.getUi().alert('Opciones del formulario actualizadas.');
 }
 
 function onFormSubmit(event) {
@@ -451,8 +454,62 @@ function onFormSubmit(event) {
 
 function installAutomation() {
   removeTriggers_('syncRetroRewindCatalog');
+  removeTriggers_('runMonthlyAutomation');
   ScriptApp.newTrigger('syncRetroRewindCatalog').timeBased().everyDays(1).atHour(4).create();
-  SpreadsheetApp.getUi().alert('Sincronización diaria instalada. La hoja comprobará el catálogo cada día.');
+  ScriptApp.newTrigger('runMonthlyAutomation').timeBased().onMonthDay(1).atHour(3).create();
+  SpreadsheetApp.getUi().alert('Automatización instalada: catálogo diario y temporada mensual el día 1.');
+}
+
+function runMonthlyAutomation() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) return;
+
+  try {
+    syncRetroRewindCatalog();
+    closeExpiredSeasons_();
+
+    const current = Utilities.formatDate(new Date(), SETTINGS.timezone, 'yyyy-MM').split('-').map(Number);
+    const seasonId = current[0] + '-' + String(current[1]).padStart(2, '0');
+    const seasonExists = readRows_(getSheet_(SETTINGS.sheetNames.seasons)).some(function (row) {
+      return row.seasonId === seasonId;
+    });
+    if (!seasonExists) generateSeason_(current[0], current[1] - 1, false);
+
+    if (getConfig_().FORM_ID) refreshSubmissionForm(false);
+    setConfig_('LAST_MONTHLY_AUTOMATION_AT', new Date());
+    setConfig_('LAST_MONTHLY_AUTOMATION_STATUS', 'OK');
+  } catch (error) {
+    setConfig_('LAST_MONTHLY_AUTOMATION_AT', new Date());
+    setConfig_('LAST_MONTHLY_AUTOMATION_STATUS', 'ERROR');
+    getSheet_(SETTINGS.sheetNames.errors).appendRow([
+      new Date(),
+      'MONTHLY_AUTOMATION',
+      error.message,
+      ''
+    ]);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function closeExpiredSeasons_() {
+  const sheet = getSheet_(SETTINGS.sheetNames.seasons);
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow < 2 || lastColumn < 1) return;
+
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const statusColumn = headers.indexOf('status') + 1;
+  const deadlineColumn = headers.indexOf('deadline') + 1;
+  if (!statusColumn || !deadlineColumn) return;
+
+  for (let rowNumber = 2; rowNumber <= lastRow; rowNumber++) {
+    const status = String(sheet.getRange(rowNumber, statusColumn).getValue() || '').toLowerCase();
+    const deadline = sheet.getRange(rowNumber, deadlineColumn).getValue();
+    if (status !== 'closed' && deadline && new Date(deadline).getTime() < Date.now()) {
+      sheet.getRange(rowNumber, statusColumn).setValue('closed');
+    }
+  }
 }
 
 function doGet(event) {
@@ -480,6 +537,7 @@ function buildPublicData_() {
       rules: {
         defaultCc: 150,
         max200ccPerSeason: 1,
+        maxCustomTracksPerSeason: SETTINGS.maxCustomTracksPerSeason,
         glitchesAllowed: true,
         deadline: 'last-day-23:59',
         pointsByPosition: SETTINGS.pointsByPosition,

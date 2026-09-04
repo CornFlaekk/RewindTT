@@ -50,7 +50,9 @@ La pestaña `Tracks` también se formatea automáticamente: `category` distingue
 
 En cada sincronización el catálogo se ordena por categoría y, dentro de `retro`, por antigüedad de consola: SNES, N64, GBA, GCN, DS, Wii, 3DS, Wii U, Tour, RMX, Arcade GP y Switch. Las pistas activas aparecen antes que las retiradas dentro de cada grupo.
 
-`Rewind TT > Instalar sincronización diaria` crea un trigger de Apps Script que comprueba el catálogo una vez al día. La generación mensual siempre filtra las pistas retiradas, aunque sus tiempos históricos sigan visibles.
+`Rewind TT > Instalar sincronización diaria` instala dos triggers de Apps Script: sincronización diaria del catálogo y automatización mensual el día 1 alrededor de las 03:00, usando la zona horaria del proyecto. La automatización cierra temporadas vencidas, sincroniza el catálogo, genera la temporada si aún no existe y actualiza el formulario. La generación mensual siempre filtra las pistas retiradas, aunque sus tiempos históricos sigan visibles.
+
+`Rewind TT > Ejecutar automatización mensual ahora` permite probar el flujo manualmente. Es idempotente: si la temporada del mes ya existe, no vuelve a sortearla.
 
 Si la hoja oficial cambia sus columnas, revisa `sourceCatalogUrl` y el mapeo de columnas en `syncRetroRewindCatalog`.
 
@@ -103,11 +105,10 @@ La columna `verified` de `Times` se prepara como `PENDING`. La web sigue contand
 
 1. Añade o modifica jugadores en `Players`.
 2. Si ha cambiado el catálogo, ejecuta `Sincronizar catálogo Retro Rewind`.
-3. El día 1 genera la temporada con `Generar temporada actual`.
-4. Ejecuta `Actualizar opciones del formulario` para que el formulario tenga las pistas nuevas.
-5. Durante el mes, los jugadores envían sus mejores tiempos.
-6. Revisa `Times` y `Errors` si hay algún envío dudoso.
-7. El último día del mes a las 23:59 dejan de aceptarse nuevos tiempos.
+3. Si la automatización está instalada, el día 1 genera la temporada y actualiza el formulario automáticamente. Si no, ejecuta `Generar temporada actual` y `Actualizar opciones del formulario` manualmente.
+4. Durante el mes, los jugadores envían sus mejores tiempos.
+5. Revisa `Times` y `Errors` si hay algún envío dudoso.
+6. El último día del mes a las 23:59 dejan de aceptarse nuevos tiempos.
 
 ## Puntuación
 
@@ -151,10 +152,7 @@ Después visita `http://localhost:8000`. Mientras `config.js` use `data/demo.jso
 
 ### Automatización
 
-- Generar automáticamente la temporada el día 1 de cada mes.
 - Crear recordatorio mensual en Google Calendar.
-- Actualizar automáticamente las opciones del formulario al cambiar de temporada.
-- Cerrar y archivar temporadas antiguas automáticamente.
 - Añadir avisos por Discord o Telegram.
 
 ### Web
