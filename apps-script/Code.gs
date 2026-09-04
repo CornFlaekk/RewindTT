@@ -41,6 +41,8 @@ const FORM_FIELDS = {
   time: 'Tiempo (mm:ss.mmm o milisegundos)',
   proof: 'Captura del tiempo (opcional)',
   proofUrl: 'Enlace a vídeo o ghost (opcional)',
+  avatar: 'Avatar (opcional)',
+  avatarUrl: 'Enlace de avatar (opcional)',
   comments: 'Comentarios (opcional)'
 };
 
@@ -56,6 +58,7 @@ function onOpen() {
     .addSeparator()
     .addItem('Crear formulario de tiempos', 'setupSubmissionForm')
     .addItem('Actualizar opciones del formulario', 'refreshSubmissionForm')
+    .addItem('Crear formulario de avatar', 'setupAvatarForm')
     .addItem('Instalar sincronización diaria', 'installAutomation')
     .addItem('Ejecutar automatización mensual ahora', 'runMonthlyAutomation')
     .addToUi();
@@ -76,6 +79,8 @@ function setupWorkbook() {
     CHANCE_OF_200CC: SETTINGS.chanceOf200cc,
     FORM_ID: '',
     FORM_URL: '',
+    AVATAR_FORM_ID: '',
+    AVATAR_FORM_URL: '',
     WEB_APP_URL: ''
   };
 
@@ -392,6 +397,97 @@ function refreshSubmissionForm(showAlert) {
   if (showAlert !== false) SpreadsheetApp.getUi().alert('Opciones del formulario actualizadas.');
 }
 
+function setupAvatarForm() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  ensureSheet_(spreadsheet, SETTINGS.sheetNames.players, SETTINGS.headers.Players);
+  const config = getConfig_();
+  if (config.AVATAR_FORM_ID) {
+    SpreadsheetApp.getUi().alert('Ya existe un formulario de avatar: ' + config.AVATAR_FORM_URL);
+    return;
+  }
+
+  const form = FormApp.create('Rewind TT / Cambiar avatar');
+  form.setCollectEmail(true);
+  form.setDescription(
+    'Sube una imagen cuadrada para tu perfil. El correo de la cuenta Google identifica automáticamente al jugador autorizado.\n\n' +
+    'La imagen se guardará en Drive y se mostrará públicamente en la web.'
+  );
+  form.addTextItem()
+    .setTitle(FORM_FIELDS.avatarUrl)
+    .setHelpText('Opcional. Se usa como alternativa si no añades una pregunta de subida de archivos.');
+  form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadsheet.getId());
+
+  setConfig_('AVATAR_FORM_ID', form.getId());
+  setConfig_('AVATAR_FORM_URL', form.getPublishedUrl());
+  removeTriggers_('onAvatarSubmit');
+  ScriptApp.newTrigger('onAvatarSubmit').forSpreadsheet(spreadsheet).onFormSubmit().create();
+
+  SpreadsheetApp.getUi().alert(
+    'Formulario creado. Ábrelo en modo edición y añade una pregunta "Subir archivos" con el título "' + FORM_FIELDS.avatar + '".'
+  );
+}
+
+function onAvatarSubmit(event) {
+  try {
+    const values = event.namedValues || {};
+    const submittedEmail = getSubmittedEmail_(event);
+    const player = readRows_(getSheet_(SETTINGS.sheetNames.players)).find(function (row) {
+      return isTruthy_(row.active) && normalizeEmail_(row.email) === normalizeEmail_(submittedEmail);
+    });
+    if (!submittedEmail || !player) throw new Error('El correo del avatar no pertenece a un jugador activo.');
+
+    const rawAvatar = getAvatarFromSubmission_(values);
+    if (!rawAvatar) throw new Error('No se ha recibido ninguna imagen ni enlace de avatar.');
+    const avatarUrl = makeAvatarPublicUrl_(rawAvatar);
+    updatePlayerAvatar_(player.playerId, avatarUrl);
+  } catch (error) {
+    getSheet_(SETTINGS.sheetNames.errors).appendRow([
+      new Date(),
+      'AVATAR_SUBMISSION',
+      error.message,
+      JSON.stringify(event && event.namedValues ? event.namedValues : {})
+    ]);
+  }
+}
+
+function getAvatarFromSubmission_(values) {
+  const directValue = getNamedValue_(values, FORM_FIELDS.avatar) || getNamedValue_(values, FORM_FIELDS.avatarUrl);
+  if (directValue) return directValue;
+  const uploadKey = Object.keys(values).find(function (key) {
+    return /avatar|foto|imagen|archivo|file|upload/i.test(String(key));
+  });
+  return uploadKey ? getNamedValue_(values, uploadKey) : '';
+}
+
+function makeAvatarPublicUrl_(value) {
+  const raw = String(value || '').trim();
+  const driveIdMatch = raw.match(/[-\w]{20,}/);
+  if (!driveIdMatch || !/drive\.google|^[-\w]{20,}$/.test(raw)) return raw;
+
+  const fileId = driveIdMatch[0];
+  const file = DriveApp.getFileById(fileId);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return 'https://drive.google.com/uc?export=view&id=' + encodeURIComponent(fileId);
+}
+
+function updatePlayerAvatar_(playerId, avatarUrl) {
+  const sheet = getSheet_(SETTINGS.sheetNames.players);
+  ensureSheet_(SpreadsheetApp.getActiveSpreadsheet(), SETTINGS.sheetNames.players, SETTINGS.headers.Players);
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const playerColumn = headers.indexOf('playerId') + 1;
+  const avatarColumn = headers.indexOf('avatarUrl') + 1;
+  if (!playerColumn || !avatarColumn) throw new Error('Players no tiene las columnas necesarias.');
+
+  for (let rowNumber = 2; rowNumber <= sheet.getLastRow(); rowNumber++) {
+    const value = normalizeSheetValue_('playerId', sheet.getRange(rowNumber, playerColumn).getValue());
+    if (value === playerId) {
+      sheet.getRange(rowNumber, avatarColumn).setValue(avatarUrl);
+      return;
+    }
+  }
+  throw new Error('No se ha encontrado el jugador en Players.');
+}
+
 function onFormSubmit(event) {
   try {
     const values = event.namedValues || {};
@@ -540,6 +636,7 @@ function buildPublicData_() {
       catalogVersion: config.CATALOG_VERSION || 'desconocida',
       lastUpdated: new Date().toISOString(),
       timezone: config.TIMEZONE || SETTINGS.timezone,
+      avatarFormUrl: config.AVATAR_FORM_URL || '',
       sourceCatalogUrl: config.SOURCE_CATALOG_URL || SETTINGS.sourceCatalogUrl,
       rules: {
         defaultCc: 150,

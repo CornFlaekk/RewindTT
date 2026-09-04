@@ -131,6 +131,8 @@ Completar las cuatro pistas suma `2` puntos. Los empates reciben la misma puntua
 
 La web incluye una vista de perfil seleccionable por jugador con avatar, puntos del mes, puntos generales, victorias, pendientes y mejores marcas del mes. El avatar se configura con `Players.avatarUrl`; debe ser una URL de imagen accesible desde el navegador. Las tarjetas de pistas muestran consola, categoría, 150/200cc, pista estrella y una composición gráfica generada por consola.
 
+Para automatizar los avatares, ejecuta `Rewind TT > Crear formulario de avatar`. En el formulario creado añade manualmente una pregunta de tipo `Subir archivos` titulada `Avatar (opcional)`, limita a una imagen y déjala opcional. El botón `Cambiar avatar` aparecerá en los perfiles cuando el formulario esté configurado. El trigger valida el correo, publica el archivo en Drive y actualiza `Players.avatarUrl`.
+
 ## Desarrollo local
 
 No hace falta instalar dependencias. Abre la carpeta con un servidor estático, por ejemplo:

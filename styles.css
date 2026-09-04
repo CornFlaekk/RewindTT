@@ -956,6 +956,16 @@ button {
   font-size: 0.58rem;
 }
 
+.profile-avatar-action {
+  display: inline-flex;
+  margin-top: 14px;
+  color: var(--acid);
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
 .profile-stat-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

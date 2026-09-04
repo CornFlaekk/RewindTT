@@ -284,11 +284,14 @@
       });
       return { row: row, track: track, entry: entry };
     });
+    const avatarAction = data.meta && data.meta.avatarFormUrl
+      ? '<a class="profile-avatar-action" href="' + escapeHtml(data.meta.avatarFormUrl) + '" target="_blank" rel="noreferrer">Cambiar avatar ↗</a>'
+      : '';
 
     els["profile-card"].innerHTML =
       '<div class="profile-identity"><div class="profile-avatar" style="--player-color:' + escapeHtml(player.color || "#d7ff4f") + '">' +
       renderAvatarContent(player) +
-      '</div><div><p class="section-kicker">Piloto</p><h3>' + escapeHtml(player.displayName) + '</h3><span>@' + escapeHtml(player.id) + '</span></div></div>' +
+      '</div><div><p class="section-kicker">Piloto</p><h3>' + escapeHtml(player.displayName) + '</h3><span>@' + escapeHtml(player.id) + '</span>' + avatarAction + '</div></div>' +
       '<div class="profile-stat-grid"><div><span>Este mes</span><strong>' + (monthly ? monthly.totalPoints : 0) + ' <small>pts</small></strong></div>' +
       '<div><span>General</span><strong>' + (overall ? overall.totalPoints : 0) + ' <small>pts</small></strong></div>' +
       '<div><span>Victorias</span><strong>' + (overall ? overall.wins : 0) + '</strong></div>' +
