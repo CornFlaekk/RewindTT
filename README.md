@@ -94,7 +94,7 @@ La autorización de datos y la restricción de acceso al formulario son cosas di
 
 Los correos nunca se incluyen en el JSON público que consume GitHub Pages. Los envíos rechazados y sus datos quedan únicamente en `Errors`, dentro de la hoja.
 
-La columna `verified` de `Times` se prepara como `PENDING`, pero la versión actual todavía no oculta automáticamente de la web un tiempo pendiente. La validación automática de estados forma parte de las mejoras pendientes.
+La columna `verified` de `Times` se prepara como `PENDING`. La web sigue contando esos tiempos, pero los marca visualmente como `pendiente`; los tiempos `REJECTED` no cuentan.
 
 ## Operación habitual
 
@@ -143,10 +143,6 @@ Después visita `http://localhost:8000`. Mientras `config.js` use `data/demo.jso
 
 ### Competición
 
-- Añadir clasificación acumulada de temporada.
-- Añadir puntos totales, meses ganados y victorias por pista.
-- Permitir descartar el peor mes de cada jugador.
-- Usar `verified` para excluir de la web tiempos rechazados o pendientes, según la regla elegida.
 - Añadir un panel de revisión de envíos pendientes.
 - Permitir editar o anular un tiempo manteniendo un registro de cambios.
 

@@ -438,6 +438,37 @@ button {
   text-transform: uppercase;
 }
 
+.leaderboard-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  align-items: end;
+}
+
+.leaderboard-switch {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.leaderboard-tab {
+  min-height: 27px;
+  padding: 0 10px;
+  color: var(--muted);
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.leaderboard-tab.is-active {
+  color: var(--bg);
+  background: var(--acid);
+}
+
 .track-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -603,6 +634,17 @@ button {
 
 .entry-proof {
   color: var(--acid);
+}
+
+.entry-pending {
+  display: block;
+  margin-top: 2px;
+  color: var(--orange);
+  font-family: var(--mono);
+  font-size: 0.43rem;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .empty-state {
@@ -1036,6 +1078,11 @@ button {
   .section-heading-row {
     display: block;
     margin-bottom: 22px;
+  }
+
+  .leaderboard-controls {
+    align-items: start;
+    margin-top: 18px;
   }
 
   .section-note {

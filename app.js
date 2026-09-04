@@ -5,7 +5,8 @@
   const state = {
     data: null,
     selectedSeasonId: null,
-    countdownTimer: null
+    countdownTimer: null,
+    leaderboardMode: "month"
   };
 
   const pointsByPosition = [10, 7, 5, 3, 2, 1];
@@ -60,6 +61,20 @@
           window.setTimeout(function () {
             showToast("Configura la URL del formulario en config.js.");
           }, 0);
+        }
+      });
+    });
+
+    document.querySelectorAll("[data-leaderboard-mode]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        state.leaderboardMode = button.dataset.leaderboardMode;
+        document.querySelectorAll("[data-leaderboard-mode]").forEach(function (tab) {
+          const isSelected = tab.dataset.leaderboardMode === state.leaderboardMode;
+          tab.classList.toggle("is-active", isSelected);
+          tab.setAttribute("aria-selected", String(isSelected));
+        });
+        if (state.data) {
+          renderLeaderboard(state.data, getSeason(state.data, state.selectedSeasonId));
         }
       });
     });
@@ -194,6 +209,7 @@
                   escapeHtml(entry.player.displayName) +
                   '</span><strong>' +
                   timeMarkup +
+                  (isPending(entry.verified) ? '<small class="entry-pending">pendiente</small>' : "") +
                   "</strong></div>"
                 );
               })
@@ -224,14 +240,22 @@
 
   function renderLeaderboard(data, season) {
     const trackRows = getSeasonTracks(data, season.id);
-    const scoring = calculateScores(data, season, trackRows);
-    els["leaderboard-caption"].textContent = trackRows.length + " pistas · mejor marca por jugador";
+    const isOverall = state.leaderboardMode === "overall";
+    const scoring = isOverall ? calculateOverallScores(data) : calculateScores(data, season, trackRows);
+    els["leaderboard-caption"].textContent = isOverall
+      ? data.seasons.length + " meses · puntos acumulados"
+      : trackRows.length + " pistas · mejor marca por jugador";
 
     els["leaderboard"].innerHTML = scoring
       .map(function (row, index) {
         const rankClass = index < 3 ? " rank-top rank-" + (index + 1) : "";
         const avatar = row.player.displayName.slice(0, 1).toUpperCase();
-        const details = row.completed + "/" + trackRows.length + " pistas";
+        const details = isOverall
+          ? row.monthsPlayed + (row.monthsPlayed === 1 ? " mes" : " meses") + " · " + row.completed + " pistas"
+          : row.completed + "/" + trackRows.length + " pistas";
+        const pendingLabel = row.pending
+          ? " · " + row.pending + (row.pending === 1 ? " pendiente" : " pendientes")
+          : "";
         return (
           '<div class="leaderboard-row' + rankClass + '"><span class="leaderboard-rank">' +
           String(index + 1).padStart(2, "0") +
@@ -243,7 +267,8 @@
           escapeHtml(row.player.displayName) +
           '</strong><span>' +
           details +
-          (row.completed === trackRows.length ? " · completo" : "") +
+          (row.completed === trackRows.length && !isOverall ? " · completo" : "") +
+          pendingLabel +
           '</span></div><span class="player-races">' +
           row.wins +
           " vict." +
@@ -328,6 +353,7 @@
         let wins = 0;
         let completed = 0;
         let totalTime = 0;
+        let pending = 0;
 
         trackRows.forEach(function (row) {
           const entries = getTrackEntries(data, season.id, row.trackId, bestTimes);
@@ -344,21 +370,63 @@
           totalPoints += basePoints * (row.isStar ? 2 : 1);
           completed += 1;
           totalTime += entry.timeMs;
+          if (isPending(entry.verified)) pending += 1;
           if (rank === 1) wins += 1;
         });
 
         if (completed === trackRows.length && trackRows.length > 0) totalPoints += 2;
-        return { player: player, totalPoints: totalPoints, wins: wins, completed: completed, totalTime: totalTime };
+        return { player: player, totalPoints: totalPoints, wins: wins, completed: completed, totalTime: totalTime, pending: pending };
       })
       .sort(function (a, b) {
         return b.totalPoints - a.totalPoints || b.wins - a.wins || a.totalTime - b.totalTime || a.player.displayName.localeCompare(b.player.displayName);
       });
   }
 
+  function calculateOverallScores(data) {
+    const aggregates = new Map();
+    data.players.forEach(function (player) {
+      aggregates.set(player.id, {
+        player: player,
+        totalPoints: 0,
+        wins: 0,
+        completed: 0,
+        pending: 0,
+        monthsPlayed: 0,
+        monthsWon: 0
+      });
+    });
+
+    data.seasons.forEach(function (season) {
+      const monthlyScores = calculateScores(data, season, getSeasonTracks(data, season.id));
+      const monthWinnerPoints = monthlyScores.reduce(function (highest, row) {
+        return Math.max(highest, row.totalPoints);
+      }, 0);
+
+      monthlyScores.forEach(function (row) {
+        const aggregate = aggregates.get(row.player.id);
+        if (!aggregate) return;
+        aggregate.totalPoints += row.totalPoints;
+        aggregate.wins += row.wins;
+        aggregate.completed += row.completed;
+        aggregate.pending += row.pending;
+        if (row.completed > 0) aggregate.monthsPlayed += 1;
+        if (row.totalPoints > 0 && row.totalPoints === monthWinnerPoints) aggregate.monthsWon += 1;
+      });
+    });
+
+    return Array.from(aggregates.values())
+      .filter(function (row) {
+        return row.player.active !== false || row.completed > 0;
+      })
+      .sort(function (a, b) {
+        return b.totalPoints - a.totalPoints || b.monthsWon - a.monthsWon || b.wins - a.wins || a.player.displayName.localeCompare(b.player.displayName);
+      });
+  }
+
   function getBestTimes(data, seasonId) {
     const best = new Map();
     (data.times || []).forEach(function (time) {
-      if (time.seasonId !== seasonId || !Number.isFinite(Number(time.timeMs))) return;
+      if (time.seasonId !== seasonId || isRejected(time.verified) || !Number.isFinite(Number(time.timeMs))) return;
       const key = time.trackId + "::" + time.playerId;
       const current = best.get(key);
       if (!current || Number(time.timeMs) < Number(current.timeMs)) best.set(key, time);
@@ -376,6 +444,14 @@
       .sort(function (a, b) {
         return a.timeMs - b.timeMs || a.player.displayName.localeCompare(b.player.displayName);
       });
+  }
+
+  function isPending(status) {
+    return String(status || "PENDING").toUpperCase() === "PENDING";
+  }
+
+  function isRejected(status) {
+    return String(status || "").toUpperCase() === "REJECTED";
   }
 
   function getSeasonTracks(data, seasonId) {
