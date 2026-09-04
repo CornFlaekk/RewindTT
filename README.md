@@ -76,6 +76,34 @@ El campo de captura usa la subida de archivos de Google Forms cuando la cuenta l
 
 Los envíos recibidos después del deadline se registran en `Errors` y no entran en la clasificación.
 
+## Autorización de tiempos
+
+La autorización se hace por correo electrónico, no por el nombre elegido en el formulario.
+
+1. Añade cada jugador en `Players` con `active = TRUE` y su correo en la columna `email`.
+2. Ejecuta `Rewind TT > Actualizar opciones del formulario` después de añadir o quitar jugadores.
+3. Google Forms recoge el correo del remitente mediante `setCollectEmail(true)`.
+4. El trigger `onFormSubmit` recibe la respuesta y busca ese correo en `Players`.
+5. Si el correo no existe o el jugador seleccionado no coincide con ese correo, el envío se guarda en `Errors` y no se añade a `Times`.
+6. Si el correo, el jugador, la pista, el tiempo, la temporada y el deadline son válidos, se añade una fila a `Times` con estado `PENDING`.
+7. La web utiliza el mejor tiempo válido de cada jugador y pista.
+
+La autorización de datos y la restricción de acceso al formulario son cosas distintas. Un Google Form puede seguir siendo visitable si alguien obtiene el enlace; el backend rechaza sus respuestas, pero esa persona todavía puede abrir y enviar el formulario. Para impedir también el acceso necesitas activar `Recopilar direcciones de correo` en modo verificado y `Requerir inicio de sesión` si tu cuenta lo permite. En cuentas personales de Google puede que no exista una lista de permitidos real dentro de Forms. Si se necesita esa restricción fuerte, habría que migrar el formulario a una página con autenticación propia o utilizar Google Workspace.
+
+Los correos nunca se incluyen en el JSON público que consume GitHub Pages. Los envíos rechazados y sus datos quedan únicamente en `Errors`, dentro de la hoja.
+
+La columna `verified` de `Times` se prepara como `PENDING`, pero la versión actual todavía no oculta automáticamente de la web un tiempo pendiente. La validación automática de estados forma parte de las mejoras pendientes.
+
+## Operación habitual
+
+1. Añade o modifica jugadores en `Players`.
+2. Si ha cambiado el catálogo, ejecuta `Sincronizar catálogo Retro Rewind`.
+3. El día 1 genera la temporada con `Generar temporada actual`.
+4. Ejecuta `Actualizar opciones del formulario` para que el formulario tenga las pistas nuevas.
+5. Durante el mes, los jugadores envían sus mejores tiempos.
+6. Revisa `Times` y `Errors` si hay algún envío dudoso.
+7. El último día del mes a las 23:59 dejan de aceptarse nuevos tiempos.
+
 ## Puntuación
 
 La web calcula estos puntos por pista:
@@ -100,3 +128,53 @@ python -m http.server 8000
 ```
 
 Después visita `http://localhost:8000`. Mientras `config.js` use `data/demo.json`, la página muestra datos de ejemplo con una pista retirada histórica y una carrera de 200cc.
+
+## Mejoras pendientes
+
+### Prioridad alta
+
+- Activar y verificar GitHub Pages con datos reales.
+- Hacer una prueba completa con un correo autorizado y otro no autorizado.
+- Proteger rangos administrativos de Google Sheets para evitar cambios accidentales.
+- Comprobar que el trigger instalable `onFormSubmit` está activo.
+- Revisar manualmente el modo de correo verificado del formulario.
+
+### Competición
+
+- Añadir clasificación acumulada de temporada.
+- Añadir puntos totales, meses ganados y victorias por pista.
+- Permitir descartar el peor mes de cada jugador.
+- Usar `verified` para excluir de la web tiempos rechazados o pendientes, según la regla elegida.
+- Añadir un panel de revisión de envíos pendientes.
+- Permitir editar o anular un tiempo manteniendo un registro de cambios.
+
+### Automatización
+
+- Generar automáticamente la temporada el día 1 de cada mes.
+- Crear recordatorio mensual en Google Calendar.
+- Actualizar automáticamente las opciones del formulario al cambiar de temporada.
+- Cerrar y archivar temporadas antiguas automáticamente.
+- Añadir avisos por Discord o Telegram.
+
+### Web
+
+- Mostrar categoría y consola con colores también en las tarjetas públicas.
+- Añadir perfiles individuales de jugadores.
+- Añadir estadísticas de mejora, rachas y récords personales.
+- Crear una página de enfrentamientos directos.
+- Añadir filtros por mes, consola y categoría.
+- Añadir imágenes o miniaturas de las pistas.
+
+### Reglas y diversión
+
+- Configurar la puntuación desde `Config` en lugar de tenerla fija en el código.
+- Añadir premios a la mayor mejora y a la participación perfecta.
+- Añadir una pista comodín o sorpresa configurable.
+- Añadir temporadas trimestrales o anuales.
+- Permitir reglas especiales para meses de 200cc.
+
+### Evolución técnica
+
+- Separar los datos públicos y administrativos en hojas distintas.
+- Añadir copias de seguridad automáticas de la hoja.
+- Migrar a autenticación y base de datos propias si la competición crece mucho.
