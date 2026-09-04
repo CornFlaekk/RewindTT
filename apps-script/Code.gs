@@ -430,14 +430,14 @@ function setupAvatarForm() {
 function onAvatarSubmit(event) {
   try {
     const values = event.namedValues || {};
+    const rawAvatar = getAvatarFromSubmission_(values);
+    if (!rawAvatar) return;
     const submittedEmail = getSubmittedEmail_(event);
     const player = readRows_(getSheet_(SETTINGS.sheetNames.players)).find(function (row) {
       return isTruthy_(row.active) && normalizeEmail_(row.email) === normalizeEmail_(submittedEmail);
     });
     if (!submittedEmail || !player) throw new Error('El correo del avatar no pertenece a un jugador activo.');
 
-    const rawAvatar = getAvatarFromSubmission_(values);
-    if (!rawAvatar) throw new Error('No se ha recibido ninguna imagen ni enlace de avatar.');
     const avatarUrl = makeAvatarPublicUrl_(rawAvatar);
     updatePlayerAvatar_(player.playerId, avatarUrl);
   } catch (error) {
@@ -467,7 +467,7 @@ function makeAvatarPublicUrl_(value) {
   const fileId = driveIdMatch[0];
   const file = DriveApp.getFileById(fileId);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return 'https://drive.google.com/uc?export=view&id=' + encodeURIComponent(fileId);
+  return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(fileId) + '&sz=w400';
 }
 
 function updatePlayerAvatar_(playerId, avatarUrl) {
@@ -495,6 +495,7 @@ function onFormSubmit(event) {
     const playerValue = get(FORM_FIELDS.player);
     const trackValue = get(FORM_FIELDS.track);
     const timeValue = get(FORM_FIELDS.time);
+    if (!playerValue || !trackValue || !timeValue) return;
     const submittedEmail = getSubmittedEmail_(event);
     const playerId = playerValue.split(' | ')[0];
     const trackParts = trackValue.split(' | ');

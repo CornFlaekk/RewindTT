@@ -284,8 +284,11 @@
       });
       return { row: row, track: track, entry: entry };
     });
-    const avatarAction = data.meta && data.meta.avatarFormUrl
-      ? '<a class="profile-avatar-action" href="' + escapeHtml(data.meta.avatarFormUrl) + '" target="_blank" rel="noreferrer">Cambiar avatar ↗</a>'
+    const avatarUrl = data.meta && data.meta.avatarFormUrl
+      ? data.meta.avatarFormUrl
+      : config.submitUrl;
+    const avatarAction = avatarUrl
+      ? '<a class="profile-avatar-action" href="' + escapeHtml(avatarUrl) + '" target="_blank" rel="noreferrer">Cambiar avatar ↗</a>'
       : '';
 
     els["profile-card"].innerHTML =
@@ -316,7 +319,16 @@
 
   function renderAvatarContent(player) {
     const initial = escapeHtml(String(player.displayName || "?").slice(0, 1).toUpperCase());
-    return '<span class="avatar-initial">' + initial + '</span>' + (player.avatarUrl ? '<img data-fallback-image src="' + escapeHtml(player.avatarUrl) + '" alt="" loading="lazy">' : "");
+    const imageUrl = normalizeImageUrl(player.avatarUrl);
+    return '<span class="avatar-initial">' + initial + '</span>' + (imageUrl ? '<img data-fallback-image src="' + escapeHtml(imageUrl) + '" alt="" loading="lazy">' : "");
+  }
+
+  function normalizeImageUrl(url) {
+    const value = String(url || "").trim();
+    if (!value) return "";
+    const driveMatch = value.match(/drive\.google\.com\/uc\?export=view&id=([-\w]+)/i);
+    if (driveMatch) return "https://drive.google.com/thumbnail?id=" + encodeURIComponent(driveMatch[1]) + "&sz=w400";
+    return value;
   }
 
   function bindBrokenImages(root) {
