@@ -54,6 +54,8 @@ En cada sincronización el catálogo se ordena por categoría y, dentro de `retr
 
 `Rewind TT > Ejecutar automatización mensual ahora` permite probar el flujo manualmente. Es idempotente: si la temporada del mes ya existe, no vuelve a sortearla.
 
+El formulario solo muestra las pistas de la temporada del mes actual. Las temporadas futuras pueden estar creadas para pruebas, pero no aparecen hasta que llega su mes.
+
 Si la hoja oficial cambia sus columnas, revisa `sourceCatalogUrl` y el mapeo de columnas en `syncRetroRewindCatalog`.
 
 ## Temporadas

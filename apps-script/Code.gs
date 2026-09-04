@@ -181,6 +181,7 @@ function generateCurrentSeason() {
   const now = new Date();
   const current = Utilities.formatDate(now, SETTINGS.timezone, 'yyyy-MM').split('-').map(Number);
   generateSeason_(current[0], current[1] - 1, true);
+  if (getConfig_().FORM_ID) refreshSubmissionForm();
 }
 
 function resetCurrentSeason() {
@@ -309,9 +310,7 @@ function setupSubmissionForm() {
   }
 
   const players = readRows_(getSheet_(SETTINGS.sheetNames.players)).filter(function (player) { return isTruthy_(player.active); });
-  const seasons = readRows_(getSheet_(SETTINGS.sheetNames.seasons)).filter(function (season) {
-    return season.status !== 'closed' && new Date(season.deadline).getTime() >= Date.now();
-  });
+  const seasons = getCurrentFormSeasons_();
   const seasonTracks = readRows_(getSheet_(SETTINGS.sheetNames.seasonTracks));
   const tracks = readRows_(getSheet_(SETTINGS.sheetNames.tracks));
   const trackChoices = seasonTracks.filter(function (row) {
@@ -369,9 +368,7 @@ function refreshSubmissionForm(showAlert) {
   const form = FormApp.openById(formId);
   form.setCollectEmail(true);
   const players = readRows_(getSheet_(SETTINGS.sheetNames.players)).filter(function (player) { return isTruthy_(player.active); });
-  const seasons = readRows_(getSheet_(SETTINGS.sheetNames.seasons)).filter(function (season) {
-    return season.status !== 'closed' && new Date(season.deadline).getTime() >= Date.now();
-  });
+  const seasons = getCurrentFormSeasons_();
   const seasonTracks = readRows_(getSheet_(SETTINGS.sheetNames.seasonTracks));
   const tracks = readRows_(getSheet_(SETTINGS.sheetNames.tracks));
   const playerItem = form.getItems(FormApp.ItemType.LIST).find(function (item) { return item.getTitle() === FORM_FIELDS.player; });
@@ -510,6 +507,14 @@ function closeExpiredSeasons_() {
       sheet.getRange(rowNumber, statusColumn).setValue('closed');
     }
   }
+}
+
+function getCurrentFormSeasons_() {
+  closeExpiredSeasons_();
+  const current = Utilities.formatDate(new Date(), SETTINGS.timezone, 'yyyy-MM');
+  return readRows_(getSheet_(SETTINGS.sheetNames.seasons)).filter(function (season) {
+    return season.seasonId === current && season.status !== 'closed' && new Date(season.deadline).getTime() >= Date.now();
+  });
 }
 
 function doGet(event) {
