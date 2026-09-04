@@ -48,8 +48,6 @@ El script utiliza la hoja pública de catálogo mantenida para Retro Rewind. `Si
 
 La pestaña `Tracks` también se formatea automáticamente: `category` distingue `retro`, `wii-original` y `custom`, `console` identifica la plataforma y las celdas reciben colores por consola. Las pistas retiradas aparecen atenuadas y la tabla queda filtrable con la cabecera congelada.
 
-La columna opcional `imageUrl` de `Tracks` permite añadir una miniatura pública para cada pista. La sincronización conserva esas URLs aunque se actualice el catálogo. Si no hay imagen, la web genera una tarjeta gráfica con el color y el icono de la consola.
-
 En cada sincronización el catálogo se ordena por categoría y, dentro de `retro`, por antigüedad de consola: SNES, N64, GBA, GCN, DS, Wii, 3DS, Wii U, Tour, RMX, Arcade GP y Switch. Las pistas activas aparecen antes que las retiradas dentro de cada grupo.
 
 `Rewind TT > Instalar sincronización diaria` instala dos triggers de Apps Script: sincronización diaria del catálogo y automatización mensual el día 1 alrededor de las 03:00, usando la zona horaria del proyecto. La automatización cierra temporadas vencidas, sincroniza el catálogo, genera la temporada si aún no existe y actualiza el formulario. La generación mensual siempre filtra las pistas retiradas, aunque sus tiempos históricos sigan visibles.
@@ -131,7 +129,7 @@ Completar las cuatro pistas suma `2` puntos. Los empates reciben la misma puntua
 
 ## Perfiles y presentación
 
-La web incluye una vista de perfil seleccionable por jugador con avatar, puntos del mes, puntos generales, victorias, pendientes y mejores marcas del mes. El avatar se configura con `Players.avatarUrl`; debe ser una URL de imagen accesible desde el navegador. Las tarjetas de pistas muestran consola, categoría, 150/200cc, pista estrella y miniatura opcional.
+La web incluye una vista de perfil seleccionable por jugador con avatar, puntos del mes, puntos generales, victorias, pendientes y mejores marcas del mes. El avatar se configura con `Players.avatarUrl`; debe ser una URL de imagen accesible desde el navegador. Las tarjetas de pistas muestran consola, categoría, 150/200cc, pista estrella y una composición gráfica generada por consola.
 
 ## Desarrollo local
 
@@ -168,7 +166,6 @@ Después visita `http://localhost:8000`. Mientras `config.js` use `data/demo.jso
 - Añadir estadísticas de mejora, rachas y récords personales.
 - Crear una página de enfrentamientos directos.
 - Añadir filtros por mes, consola y categoría.
-- Añadir un repositorio de imágenes propio para no depender de URLs externas.
 
 ### Reglas y diversión
 

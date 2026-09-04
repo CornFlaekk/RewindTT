@@ -308,10 +308,7 @@
 
   function renderTrackArt(track) {
     const consoleMeta = getConsoleMeta(track);
-    const image = track.imageUrl
-      ? '<img data-fallback-image src="' + escapeHtml(track.imageUrl) + '" alt="" loading="lazy">'
-      : "";
-    return '<div class="track-art ' + consoleMeta.className + (image ? ' has-image' : '') + '"><div class="art-fallback"><span class="art-console-icon">' + escapeHtml(consoleMeta.icon) + '</span><span>' + escapeHtml(consoleMeta.label) + '</span></div>' + image + '</div>';
+    return '<div class="track-art ' + consoleMeta.className + '"><div class="art-fallback"><span class="art-console-icon">' + escapeHtml(consoleMeta.icon) + '</span><span>' + escapeHtml(consoleMeta.label) + '</span></div></div>';
   }
 
   function renderAvatarContent(player) {
@@ -323,8 +320,6 @@
     if (!root) return;
     root.querySelectorAll("img[data-fallback-image]").forEach(function (image) {
       image.addEventListener("error", function () {
-        const art = image.closest(".track-art");
-        if (art) art.classList.remove("has-image");
         image.remove();
       });
     });

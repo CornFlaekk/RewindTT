@@ -12,12 +12,12 @@
     { "id": "neo", "displayName": "Neo", "color": "#ffc857", "avatarUrl": "", "active": true }
   ],
   "tracks": [
-    { "id": "wii-luigi-circuit", "name": "Wii Luigi Circuit", "originGame": "Mario Kart Wii", "isWiiOriginal": true, "category": "wii-original", "console": "Wii", "active": true, "imageUrl": "" },
-    { "id": "n64-yoshi-valley", "name": "N64 Yoshi Valley", "originGame": "Mario Kart 64", "isWiiOriginal": false, "category": "retro", "console": "N64", "active": true, "imageUrl": "" },
-    { "id": "gcn-dk-mountain", "name": "GCN DK Mountain", "originGame": "Mario Kart: Double Dash!!", "isWiiOriginal": false, "category": "retro", "console": "GCN", "active": true, "imageUrl": "" },
-    { "id": "snes-rainbow-road", "name": "SNES Rainbow Road", "originGame": "Super Mario Kart", "isWiiOriginal": false, "category": "retro", "console": "SNES", "active": true, "imageUrl": "" },
-    { "id": "ct-mushroom-city", "name": "GCN Mushroom City", "originGame": "Mario Kart: Double Dash!!", "isWiiOriginal": false, "category": "custom", "console": "GCN", "active": true, "imageUrl": "" },
-    { "id": "retired-wii-desert", "name": "Wii Dry Dry Ruins", "originGame": "Mario Kart Wii", "isWiiOriginal": true, "category": "wii-original", "console": "Wii", "active": false, "imageUrl": "", "retiredAt": "2026-08-21T10:00:00+02:00" }
+    { "id": "wii-luigi-circuit", "name": "Wii Luigi Circuit", "originGame": "Mario Kart Wii", "isWiiOriginal": true, "category": "wii-original", "console": "Wii", "active": true },
+    { "id": "n64-yoshi-valley", "name": "N64 Yoshi Valley", "originGame": "Mario Kart 64", "isWiiOriginal": false, "category": "retro", "console": "N64", "active": true },
+    { "id": "gcn-dk-mountain", "name": "GCN DK Mountain", "originGame": "Mario Kart: Double Dash!!", "isWiiOriginal": false, "category": "retro", "console": "GCN", "active": true },
+    { "id": "snes-rainbow-road", "name": "SNES Rainbow Road", "originGame": "Super Mario Kart", "isWiiOriginal": false, "category": "retro", "console": "SNES", "active": true },
+    { "id": "ct-mushroom-city", "name": "GCN Mushroom City", "originGame": "Mario Kart: Double Dash!!", "isWiiOriginal": false, "category": "custom", "console": "GCN", "active": true },
+    { "id": "retired-wii-desert", "name": "Wii Dry Dry Ruins", "originGame": "Mario Kart Wii", "isWiiOriginal": true, "category": "wii-original", "console": "Wii", "active": false, "retiredAt": "2026-08-21T10:00:00+02:00" }
   ],
   "seasons": [
     {
