@@ -202,7 +202,7 @@
         const consoleMeta = getConsoleMeta(track);
         const categoryMeta = getCategoryMeta(track);
         const badges = [
-          '<span class="pill pill-console ' + consoleMeta.className + '"><span class="console-pill-icon">' + escapeHtml(consoleMeta.icon) + '</span>' + escapeHtml(consoleMeta.label) + '</span>',
+          '<span class="pill pill-console ' + consoleMeta.className + '"><span class="console-pill-icon">' + consoleMeta.iconHtml + '</span>' + escapeHtml(consoleMeta.label) + '</span>',
           '<span class="pill pill-category ' + categoryMeta.className + '">' + escapeHtml(categoryMeta.label) + '</span>',
           row.cc === 200 ? '<span class="pill pill-hot">200cc</span>' : '<span class="pill">150cc</span>',
           row.isStar ? '<span class="pill pill-star">Pista estrella ×2</span>' : ""
@@ -308,7 +308,7 @@
 
   function renderTrackArt(track) {
     const consoleMeta = getConsoleMeta(track);
-    return '<div class="track-art ' + consoleMeta.className + '"><div class="art-fallback"><span class="art-console-icon">' + escapeHtml(consoleMeta.icon) + '</span><span>' + escapeHtml(consoleMeta.label) + '</span></div></div>';
+    return '<div class="track-art ' + consoleMeta.className + '"><div class="art-fallback"><span class="art-console-icon">' + consoleMeta.iconHtml + '</span><span>' + escapeHtml(consoleMeta.label) + '</span></div></div>';
   }
 
   function renderAvatarContent(player) {
@@ -335,21 +335,39 @@
   function getConsoleMeta(track) {
     const name = String(track.console || inferConsole_(track.name));
     const meta = {
-      SNES: ["SNES", "S", "console-snes"],
-      N64: ["N64", "64", "console-n64"],
-      GBA: ["GBA", "A", "console-gba"],
-      GCN: ["GCN", "G", "console-gcn"],
-      DS: ["DS", "DS", "console-ds"],
-      Wii: ["WII", "W", "console-wii"],
-      "Wii U": ["WII U", "U", "console-wiiu"],
-      "3DS": ["3DS", "3D", "console-3ds"],
-      Tour: ["TOUR", "T", "console-tour"],
-      RMX: ["RMX", "R", "console-rmx"],
-      "Arcade GP": ["ARCADE", "GP", "console-arcade"],
-      Switch: ["SWITCH", "S", "console-switch"],
-      "Switch 2": ["SWITCH 2", "S2", "console-switch"]
+      SNES: ["SNES", "snes", "console-snes"],
+      N64: ["N64", "n64", "console-n64"],
+      GBA: ["GBA", "gba", "console-gba"],
+      GCN: ["GCN", "gcn", "console-gcn"],
+      DS: ["DS", "ds", "console-ds"],
+      Wii: ["WII", "wii", "console-wii"],
+      "Wii U": ["WII U", "wiiu", "console-wiiu"],
+      "3DS": ["3DS", "3ds", "console-3ds"],
+      Tour: ["TOUR", "tour", "console-tour"],
+      RMX: ["RMX", "rmx", "console-rmx"],
+      "Arcade GP": ["ARCADE", "arcade", "console-arcade"],
+      Switch: ["SWITCH", "switch", "console-switch"],
+      "Switch 2": ["SWITCH 2", "switch", "console-switch"]
     }[name] || ["CUSTOM", "?", "console-custom"];
-    return { label: meta[0], icon: meta[1], className: meta[2] };
+    return { label: meta[0], iconHtml: consoleIcon_(meta[1]), className: meta[2] };
+  }
+
+  function consoleIcon_(key) {
+    const shapes = {
+      snes: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M6 9h12M8 14h8"/>',
+      n64: '<path d="M4 10c0-3 4-5 8-5s8 2 8 5l-1 7c-.3 2-2 2-3 0l-2-3H10l-2 3c-1 2-3 2-3 0z"/><path d="M8 10v4M6 12h4"/><circle cx="16" cy="11" r="1"/><circle cx="18" cy="13" r="1"/>',
+      gba: '<rect x="5" y="2" width="14" height="20" rx="3"/><rect x="8" y="5" width="8" height="6"/><path d="M8 15h3M9.5 13.5v3M15 14h.01M17 16h.01"/>',
+      gcn: '<path d="M5 8c1-3 5-4 7-4s6 1 7 4l1 8c.3 2-2 3-3 1l-2-3H9l-2 3c-1 2-3 1-3-1z"/><circle cx="15" cy="10" r="1.5"/><path d="M8 10v4M6 12h4"/>',
+      ds: '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M6 11h12M8 6h8M8 16h8"/>',
+      wii: '<rect x="8" y="2" width="8" height="20" rx="3"/><circle cx="12" cy="8" r="1.5"/><path d="M10 13h4M12 16v3"/>',
+      wiiu: '<path d="M3 8c0-2 2-3 4-3h10c2 0 4 1 4 3v8c0 2-2 3-4 3H7c-2 0-4-1-4-3z"/><rect x="9" y="8" width="6" height="5"/><circle cx="6.5" cy="12" r="1"/><circle cx="17.5" cy="12" r="1"/>',
+      '3ds': '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M5 11h14M7 5h10M8 15h8"/>',
+      tour: '<rect x="6" y="2" width="12" height="20" rx="2"/><rect x="8" y="5" width="8" height="11"/><circle cx="12" cy="19" r="1"/>',
+      rmx: '<path d="M5 7h7l-2-2M19 17h-7l2 2M12 5l7 7-7 7"/>',
+      arcade: '<path d="M8 20v-7l-3-3c-1-1 0-3 2-3h6"/><circle cx="15" cy="5" r="2"/><path d="M8 20h10M15 7v5"/>',
+      switch: '<path d="M7 4h4v16H7c-2 0-3-1-3-3V7c0-2 1-3 3-3zM17 4h-4v16h4c2 0 3-1 3-3V7c0-2-1-3-3-3z"/><circle cx="8" cy="8" r="1"/><circle cx="16" cy="16" r="1"/>'
+    };
+    return '<svg class="console-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (shapes[key] || '<path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/>') + '</svg>';
   }
 
   function inferConsole_(name) {
