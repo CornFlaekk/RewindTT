@@ -10,7 +10,7 @@ const SETTINGS = {
   sourceCatalogId: '1FelOidNHL1bqSaKeycZux1eQcDyrosONFC_qWVTYoog',
   sourceCatalogUrl: 'https://docs.google.com/spreadsheets/d/1FelOidNHL1bqSaKeycZux1eQcDyrosONFC_qWVTYoog/export?format=csv',
   timezone: 'Europe/Madrid',
-  tracksPerSeason: 5,
+  tracksPerSeason: 4,
   historyMonthsToAvoid: 2,
   chanceOf200cc: 0.2,
   pointsByPosition: [10, 7, 5, 3, 2, 1],
@@ -142,7 +142,7 @@ function syncRetroRewindCatalog() {
   });
 
   if (imported.length < SETTINGS.tracksPerSeason) {
-    throw new Error('El catálogo devuelto tiene menos de cinco pistas. No se ha modificado la hoja.');
+    throw new Error('El catálogo devuelto tiene menos de cuatro pistas. No se ha modificado la hoja.');
   }
 
   const sheet = getSheet_(SETTINGS.sheetNames.tracks);
@@ -282,7 +282,7 @@ function setupSubmissionForm() {
 
   if (!players.length) throw new Error('No hay jugadores activos en Players. Añade al menos uno con active = TRUE.');
   if (!seasons.length) throw new Error('No hay ninguna temporada abierta con deadline futuro. Genera la temporada antes de crear el formulario.');
-  if (!trackChoices.length) throw new Error('La temporada abierta no tiene pistas en SeasonTracks. Comprueba que contiene cinco filas.');
+  if (!trackChoices.length) throw new Error('La temporada abierta no tiene pistas en SeasonTracks. Comprueba que contiene cuatro filas.');
 
   const form = FormApp.create('Rewind TT / Enviar tiempo');
   form.setCollectEmail(true);

@@ -56,7 +56,7 @@ Si la hoja oficial cambia sus columnas, revisa `sourceCatalogUrl` y el mapeo de 
 
 ## Temporadas
 
-`Generar temporada actual` crea cinco pistas y no vuelve a sortearlas si la temporada ya existe. Cada temporada incluye:
+`Generar temporada actual` crea cuatro pistas y no vuelve a sortearlas si la temporada ya existe. Cada temporada incluye:
 
 - Al menos una pista original de Wii.
 - 150cc por defecto.
@@ -119,7 +119,7 @@ La web calcula estos puntos por pista:
 | 5.º | 2 |
 | 6.º o posterior | 1 |
 
-Completar las cinco pistas suma `2` puntos. Los empates reciben la misma puntuación. En la clasificación visual, el desempate secundario es número de victorias y después tiempo acumulado.
+Completar las cuatro pistas suma `2` puntos. Los empates reciben la misma puntuación. En la clasificación visual, el desempate secundario es número de victorias y después tiempo acumulado.
 
 ## Desarrollo local
 
