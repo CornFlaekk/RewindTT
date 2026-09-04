@@ -74,6 +74,8 @@ El formulario recoge el correo del remitente y solo acepta envíos cuyo correo e
 
 El campo de captura usa la subida de archivos de Google Forms cuando la cuenta lo permite. Google suele pedir iniciar sesión para subir archivos. Si no está disponible, el script crea un campo opcional para pegar un enlace a una captura, vídeo o ghost.
 
+Si se añade manualmente una pregunta de tipo `Subir archivos`, el script detecta respuestas con títulos como `Captura del tiempo`, `Imagen` o `Archivo`, y convierte IDs de Drive en enlaces guardables en `proofUrl`. Los envíos anteriores a este procesamiento no se rellenan automáticamente.
+
 Los envíos recibidos después del deadline se registran en `Errors` y no entran en la clasificación.
 
 ## Autorización de tiempos

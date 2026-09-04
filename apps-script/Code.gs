@@ -388,7 +388,7 @@ function onFormSubmit(event) {
     });
     if (!seasonTrack) throw new Error('La pista no pertenece a esa temporada.');
 
-    const proof = get(FORM_FIELDS.proof) || get(FORM_FIELDS.proofUrl);
+    const proof = getProofFromSubmission_(values);
     getSheet_(SETTINGS.sheetNames.times).appendRow([
       now,
       seasonId,
@@ -702,6 +702,29 @@ function getSubmittedEmail_(event) {
     return String(event.response.getRespondentEmail() || '').trim();
   }
   return '';
+}
+
+function getProofFromSubmission_(values) {
+  const directValue = getNamedValue_(values, FORM_FIELDS.proof) || getNamedValue_(values, FORM_FIELDS.proofUrl);
+  if (directValue) return normalizeProofLinks_(directValue);
+
+  const uploadKey = Object.keys(values).find(function (key) {
+    return /captura|archivo|imagen|foto|file|upload/i.test(String(key));
+  });
+  return uploadKey ? normalizeProofLinks_(getNamedValue_(values, uploadKey)) : '';
+}
+
+function getNamedValue_(values, key) {
+  if (!values[key] || !values[key][0]) return '';
+  return String(values[key][0]).trim();
+}
+
+function normalizeProofLinks_(value) {
+  return String(value || '').split(/\s*,\s*/).map(function (part) {
+    if (/^https?:\/\//i.test(part)) return part;
+    if (/^[A-Za-z0-9_-]{20,}$/.test(part)) return 'https://drive.google.com/open?id=' + encodeURIComponent(part);
+    return part;
+  }).filter(Boolean).join(', ');
 }
 
 function normalizeEmail_(value) {
