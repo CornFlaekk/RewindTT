@@ -779,8 +779,8 @@ button {
 .leaderboard-head,
 .leaderboard-row {
   display: grid;
-  grid-template-columns: 45px minmax(0, 1fr) 100px 110px;
-  gap: 15px;
+  grid-template-columns: 45px 40px minmax(0, 1fr) 90px 100px;
+  gap: 12px;
   align-items: center;
 }
 
@@ -790,6 +790,18 @@ button {
   border-bottom: 1px solid var(--line);
   color: var(--muted);
   font-size: 0.56rem;
+}
+
+.leaderboard-head > span:first-child {
+  grid-column: 2 / 4;
+}
+
+.leaderboard-head > span:nth-child(2) {
+  grid-column: 4;
+}
+
+.leaderboard-head > span:nth-child(3) {
+  grid-column: 5;
 }
 
 .head-track-count,
@@ -822,7 +834,6 @@ button {
   justify-content: center;
   width: 34px;
   height: 34px;
-  margin-left: -58px;
   border: 1px solid var(--player-color);
   border-radius: 50%;
   color: var(--player-color);
@@ -846,11 +857,10 @@ button {
 }
 
 .player-info {
-  grid-column: 2;
+  grid-column: 3;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-left: -8px;
 }
 
 .player-info strong {
@@ -1405,12 +1415,24 @@ button {
 
   .leaderboard-head,
   .leaderboard-row {
-    grid-template-columns: 30px minmax(0, 1fr) 77px;
-    gap: 9px;
+    grid-template-columns: 30px 32px minmax(0, 1fr) 70px;
+    gap: 8px;
   }
 
   .leaderboard-head {
     padding-inline: 13px;
+  }
+
+  .leaderboard-head > span:first-child {
+    grid-column: 2 / 4;
+  }
+
+  .leaderboard-head > span:nth-child(2) {
+    display: none;
+  }
+
+  .leaderboard-head > span:nth-child(3) {
+    grid-column: 4;
   }
 
   .leaderboard-row {
@@ -1421,11 +1443,6 @@ button {
   .player-avatar {
     width: 29px;
     height: 29px;
-    margin-left: -38px;
-  }
-
-  .player-info {
-    margin-left: -1px;
   }
 
   .player-races {
@@ -1433,7 +1450,7 @@ button {
   }
 
   .player-points {
-    grid-column: 3;
+    grid-column: 4;
   }
 
   .history-row {
