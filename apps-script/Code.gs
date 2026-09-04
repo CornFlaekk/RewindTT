@@ -1,0 +1,828 @@
+/**
+ * Rewind TT - Google Sheets backend.
+ *
+ * Paste this file into Extensions > Apps Script in the competition workbook.
+ * The script keeps the workbook as the source of truth and exposes only the
+ * public competition data through the doGet endpoint.
+ */
+
+const SETTINGS = {
+  sourceCatalogId: '1FelOidNHL1bqSaKeycZux1eQcDyrosONFC_qWVTYoog',
+  sourceCatalogUrl: 'https://docs.google.com/spreadsheets/d/1FelOidNHL1bqSaKeycZux1eQcDyrosONFC_qWVTYoog/export?format=csv',
+  timezone: 'Europe/Madrid',
+  tracksPerSeason: 5,
+  historyMonthsToAvoid: 2,
+  chanceOf200cc: 0.2,
+  pointsByPosition: [10, 7, 5, 3, 2, 1],
+  sheetNames: {
+    tracks: 'Tracks',
+    seasons: 'Seasons',
+    seasonTracks: 'SeasonTracks',
+    players: 'Players',
+    times: 'Times',
+    config: 'Config',
+    errors: 'Errors'
+  },
+  headers: {
+    Tracks: ['trackId', 'name', 'originGame', 'isWiiOriginal', 'sourceFile', 'sourceVersion', 'active', 'retiredAt', 'lastSeenAt', 'category', 'console'],
+    Seasons: ['seasonId', 'label', 'status', 'deadline', 'generatedAt', 'catalogVersion', 'starTrackId', 'notes'],
+    SeasonTracks: ['seasonId', 'slot', 'trackId', 'cc', 'isStar'],
+    Players: ['playerId', 'displayName', 'color', 'active', 'joinedAt', 'email'],
+    Times: ['submittedAt', 'seasonId', 'trackId', 'playerId', 'timeMs', 'cc', 'proofUrl', 'verified', 'source', 'comments'],
+    Config: ['key', 'value'],
+    Errors: ['createdAt', 'type', 'message', 'rawData']
+  }
+};
+
+const FORM_FIELDS = {
+  player: 'Jugador',
+  track: 'Pista',
+  time: 'Tiempo (mm:ss.mmm o milisegundos)',
+  proof: 'Captura del tiempo (opcional)',
+  proofUrl: 'Enlace a vídeo o ghost (opcional)',
+  comments: 'Comentarios (opcional)'
+};
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Rewind TT')
+    .addItem('Preparar hoja', 'setupWorkbook')
+    .addItem('Sincronizar catálogo Retro Rewind', 'syncRetroRewindCatalog')
+    .addSeparator()
+    .addItem('Generar temporada actual', 'generateCurrentSeason')
+    .addItem('Generar temporada siguiente', 'generateNextSeason')
+    .addSeparator()
+    .addItem('Crear formulario de tiempos', 'setupSubmissionForm')
+    .addItem('Actualizar opciones del formulario', 'refreshSubmissionForm')
+    .addItem('Instalar sincronización diaria', 'installAutomation')
+    .addToUi();
+}
+
+function setupWorkbook() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  Object.keys(SETTINGS.headers).forEach(function (sheetName) {
+    ensureSheet_(spreadsheet, sheetName, SETTINGS.headers[sheetName]);
+  });
+
+  const config = getConfig_();
+  const defaults = {
+    SOURCE_CATALOG_ID: SETTINGS.sourceCatalogId,
+    SOURCE_CATALOG_URL: SETTINGS.sourceCatalogUrl,
+    TIMEZONE: SETTINGS.timezone,
+    HISTORY_MONTHS_TO_AVOID: SETTINGS.historyMonthsToAvoid,
+    CHANCE_OF_200CC: SETTINGS.chanceOf200cc,
+    FORM_ID: '',
+    FORM_URL: '',
+    WEB_APP_URL: ''
+  };
+
+  Object.keys(defaults).forEach(function (key) {
+    if (config[key] === undefined) setConfig_(key, defaults[key]);
+  });
+
+  SpreadsheetApp.getUi().alert(
+    'Hoja preparada. Añade jugadores en Players, sincroniza el catálogo y genera la primera temporada.'
+  );
+}
+
+function syncRetroRewindCatalog() {
+  const config = getConfig_();
+  const sourceId = config.SOURCE_CATALOG_ID || SETTINGS.sourceCatalogId;
+  const sourceBook = SpreadsheetApp.openById(sourceId);
+  const seen = {};
+  const imported = [];
+  const seenAt = new Date();
+  let catalogVersion = config.CATALOG_VERSION || 'desconocida';
+
+  sourceBook.getSheets().forEach(function (sourceSheet) {
+    if (isBattleArenaSheet_(sourceSheet.getName())) return;
+    const rows = sourceSheet.getDataRange().getDisplayValues();
+    const headerRowIndex = rows.findIndex(function (row) {
+      return row.some(function (cell) {
+        return normalizeHeader_(cell) === 'trackname';
+      });
+    });
+    if (headerRowIndex < 0) return;
+
+    const headers = rows[headerRowIndex].map(normalizeHeader_);
+    const column = function (name) { return headers.indexOf(normalizeHeader_(name)); };
+    const trackNameColumn = column('Track Name');
+    const fileColumn = column('File');
+    const originalColumn = column('Original Track');
+    const sourceVersion = findVersion_(rows.slice(0, headerRowIndex + 1).flat());
+    if (sourceVersion) catalogVersion = sourceVersion;
+
+    rows.slice(headerRowIndex + 1).forEach(function (row) {
+      const name = cell_(row, trackNameColumn);
+      const sourceFile = cell_(row, fileColumn);
+      if (!name) return;
+
+      const baseId = slug_(sourceFile || name);
+      let trackId = baseId;
+      let duplicateNumber = 2;
+      while (seen[trackId]) trackId = baseId + '-' + duplicateNumber++;
+      seen[trackId] = true;
+
+      const originalTrack = cell_(row, originalColumn);
+      const isWiiOriginal = /^(?:Wii)\s+(?!U\b)/i.test(name);
+      imported.push({
+        trackId: trackId,
+        name: name,
+        originGame: originalTrack || (isWiiOriginal ? 'Mario Kart Wii' : sourceSheet.getName()),
+        isWiiOriginal: isWiiOriginal,
+        sourceFile: sourceFile,
+        sourceVersion: sourceVersion || catalogVersion,
+        active: true,
+        retiredAt: '',
+        lastSeenAt: seenAt,
+        category: sourceCategory_(sourceSheet.getName(), isWiiOriginal),
+        console: detectConsole_(name)
+      });
+    });
+  });
+
+  if (imported.length < SETTINGS.tracksPerSeason) {
+    throw new Error('El catálogo devuelto tiene menos de cinco pistas. No se ha modificado la hoja.');
+  }
+
+  const sheet = getSheet_(SETTINGS.sheetNames.tracks);
+  ensureSheet_(SpreadsheetApp.getActiveSpreadsheet(), SETTINGS.sheetNames.tracks, SETTINGS.headers.Tracks);
+  const current = readRows_(sheet);
+  const merged = imported.slice();
+
+  current.forEach(function (oldTrack) {
+    if (seen[oldTrack.trackId]) return;
+    merged.push({
+      trackId: oldTrack.trackId,
+      name: oldTrack.name,
+      originGame: oldTrack.originGame,
+      isWiiOriginal: oldTrack.isWiiOriginal,
+      sourceFile: oldTrack.sourceFile,
+      sourceVersion: oldTrack.sourceVersion,
+      active: false,
+      retiredAt: oldTrack.retiredAt || seenAt,
+      lastSeenAt: oldTrack.lastSeenAt,
+      category: oldTrack.category || (isTruthy_(oldTrack.isWiiOriginal) ? 'wii-original' : 'retro'),
+      console: oldTrack.console || detectConsole_(oldTrack.name)
+    });
+  });
+
+  merged.sort(compareTracks_);
+  writeRows_(sheet, SETTINGS.headers.Tracks, merged);
+  formatTrackSheet_(sheet);
+  setConfig_('CATALOG_VERSION', catalogVersion);
+  setConfig_('CATALOG_SYNCED_AT', seenAt);
+}
+
+function generateCurrentSeason() {
+  const now = new Date();
+  const current = Utilities.formatDate(now, SETTINGS.timezone, 'yyyy-MM').split('-').map(Number);
+  generateSeason_(current[0], current[1] - 1);
+}
+
+function generateNextSeason() {
+  const now = new Date();
+  const current = Utilities.formatDate(now, SETTINGS.timezone, 'yyyy-MM').split('-').map(Number);
+  const next = new Date(current[0], current[1], 1);
+  generateSeason_(next.getFullYear(), next.getMonth());
+}
+
+function generateSeason_(year, monthIndex) {
+  const seasonId = year + '-' + String(monthIndex + 1).padStart(2, '0');
+  const seasonSheet = getSheet_(SETTINGS.sheetNames.seasons);
+  const existing = readRows_(seasonSheet).some(function (row) { return row.seasonId === seasonId; });
+  if (existing) {
+    SpreadsheetApp.getUi().alert(seasonId + ' ya existe. No se ha vuelto a sortear.');
+    return;
+  }
+
+  const tracks = readRows_(getSheet_(SETTINGS.sheetNames.tracks)).filter(function (track) {
+    return isTruthy_(track.active);
+  });
+  const wiiTracks = tracks.filter(function (track) { return isTruthy_(track.isWiiOriginal); });
+  if (!wiiTracks.length) throw new Error('No hay ninguna pista activa marcada como Wii original.');
+
+  const seasonRows = readRows_(getSheet_(SETTINGS.sheetNames.seasonTracks));
+  const config = getConfig_();
+  const historyMonths = Number(config.HISTORY_MONTHS_TO_AVOID === '' || config.HISTORY_MONTHS_TO_AVOID === undefined ? SETTINGS.historyMonthsToAvoid : config.HISTORY_MONTHS_TO_AVOID);
+  const previousSeasonIds = previousSeasonIds_(seasonId, historyMonths);
+  const recentTrackIds = seasonRows.filter(function (row) {
+    return previousSeasonIds.indexOf(row.seasonId) >= 0;
+  }).map(function (row) { return row.trackId; });
+
+  const freshTracks = tracks.filter(function (track) {
+    return recentTrackIds.indexOf(track.trackId) < 0;
+  });
+  const pool = freshTracks.length >= SETTINGS.tracksPerSeason ? freshTracks : tracks;
+  const chosenWii = randomItem_(wiiTracks.filter(function (track) { return pool.some(function (candidate) { return candidate.trackId === track.trackId; }); }));
+  if (!chosenWii) throw new Error('No se ha podido encontrar una pista Wii original disponible.');
+
+  const remaining = shuffle_(pool.filter(function (track) { return track.trackId !== chosenWii.trackId; }));
+  const chosen = [chosenWii].concat(remaining.slice(0, SETTINGS.tracksPerSeason - 1));
+  if (chosen.length !== SETTINGS.tracksPerSeason) throw new Error('No hay suficientes pistas para generar la temporada.');
+
+  const configuredChance = config.CHANCE_OF_200CC;
+  const chanceOf200cc = configuredChance === '' || configuredChance === undefined
+    ? SETTINGS.chanceOf200cc
+    : Math.min(1, Math.max(0, Number(configuredChance)));
+  const specialSlot = Math.random() < chanceOf200cc ? Math.floor(Math.random() * chosen.length) : -1;
+  const starSlot = Math.floor(Math.random() * chosen.length);
+  const generatedAt = new Date();
+  const deadline = lastDayOfMonth_(year, monthIndex);
+  const catalogVersion = getConfig_().CATALOG_VERSION || 'desconocida';
+
+  seasonSheet.appendRow([
+    seasonId,
+    seasonLabel_(year, monthIndex),
+    'open',
+    deadline,
+    generatedAt,
+    catalogVersion,
+    chosen[starSlot].trackId,
+    specialSlot >= 0 ? 'Una pista especial de 200cc' : ''
+  ]);
+
+  const seasonTrackSheet = getSheet_(SETTINGS.sheetNames.seasonTracks);
+  chosen.forEach(function (track, index) {
+    seasonTrackSheet.appendRow([
+      seasonId,
+      index + 1,
+      track.trackId,
+      index === specialSlot ? 200 : 150,
+      index === starSlot
+    ]);
+  });
+
+  SpreadsheetApp.getUi().alert(
+    'Temporada ' + seasonId + ' generada: ' + chosen.map(function (track) { return track.name; }).join(', ')
+  );
+}
+
+function setupSubmissionForm() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  ensureSheet_(spreadsheet, SETTINGS.sheetNames.players, SETTINGS.headers.Players);
+  const config = getConfig_();
+  if (config.FORM_ID) {
+    SpreadsheetApp.getUi().alert('Ya existe un formulario configurado: ' + config.FORM_URL);
+    return;
+  }
+
+  const players = readRows_(getSheet_(SETTINGS.sheetNames.players)).filter(function (player) { return isTruthy_(player.active); });
+  const seasons = readRows_(getSheet_(SETTINGS.sheetNames.seasons)).filter(function (season) {
+    return season.status !== 'closed' && new Date(season.deadline).getTime() >= Date.now();
+  });
+  const seasonTracks = readRows_(getSheet_(SETTINGS.sheetNames.seasonTracks));
+  const tracks = readRows_(getSheet_(SETTINGS.sheetNames.tracks));
+  const trackChoices = seasonTracks.filter(function (row) {
+    return seasons.some(function (season) { return season.seasonId === row.seasonId; });
+  }).map(function (row) {
+    const track = tracks.find(function (candidate) { return candidate.trackId === row.trackId; });
+    return row.seasonId + ' | ' + (track ? track.name : row.trackId) + ' | ' + row.cc + 'cc';
+  });
+
+  if (!players.length) throw new Error('No hay jugadores activos en Players. Añade al menos uno con active = TRUE.');
+  if (!seasons.length) throw new Error('No hay ninguna temporada abierta con deadline futuro. Genera la temporada antes de crear el formulario.');
+  if (!trackChoices.length) throw new Error('La temporada abierta no tiene pistas en SeasonTracks. Comprueba que contiene cinco filas.');
+
+  const form = FormApp.create('Rewind TT / Enviar tiempo');
+  form.setCollectEmail(true);
+  form.setDescription(
+    'Introduce tu mejor tiempo del mes. Formato recomendado: mm:ss.mmm.\n\n' +
+    'Se permiten todos los glitches y configuraciones. La captura es opcional; el tiempo puede ser revisado por los administradores.\n\n' +
+    'El correo de la respuesta debe pertenecer a un jugador autorizado.'
+  );
+
+  form.addListItem()
+    .setTitle(FORM_FIELDS.player)
+    .setChoiceValues(players.map(function (player) { return player.playerId + ' | ' + player.displayName; }))
+    .setRequired(true);
+
+  form.addListItem()
+    .setTitle(FORM_FIELDS.track)
+    .setChoiceValues(trackChoices)
+    .setRequired(true);
+
+  form.addTextItem().setTitle(FORM_FIELDS.time).setHelpText('Ejemplos: 1:42.345 o 102345').setRequired(true);
+
+  try {
+    form.addFileUploadItem().setTitle(FORM_FIELDS.proof).setHelpText('Opcional. Google puede pedir iniciar sesión para subir archivos.');
+  } catch (error) {
+    form.addTextItem().setTitle(FORM_FIELDS.proofUrl).setHelpText('Opcional. Enlace a una captura, vídeo o ghost.');
+  }
+  form.addParagraphTextItem().setTitle(FORM_FIELDS.comments);
+  form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadsheet.getId());
+
+  setConfig_('FORM_ID', form.getId());
+  setConfig_('FORM_URL', form.getPublishedUrl());
+  removeTriggers_('onFormSubmit');
+  ScriptApp.newTrigger('onFormSubmit').forSpreadsheet(spreadsheet).onFormSubmit().create();
+
+  SpreadsheetApp.getUi().alert('Formulario creado:\n' + form.getPublishedUrl());
+}
+
+function refreshSubmissionForm() {
+  ensureSheet_(SpreadsheetApp.getActiveSpreadsheet(), SETTINGS.sheetNames.players, SETTINGS.headers.Players);
+  const formId = getConfig_().FORM_ID;
+  if (!formId) throw new Error('Todavía no existe un formulario. Ejecuta Crear formulario de tiempos.');
+
+  const form = FormApp.openById(formId);
+  form.setCollectEmail(true);
+  const players = readRows_(getSheet_(SETTINGS.sheetNames.players)).filter(function (player) { return isTruthy_(player.active); });
+  const seasons = readRows_(getSheet_(SETTINGS.sheetNames.seasons)).filter(function (season) {
+    return season.status !== 'closed' && new Date(season.deadline).getTime() >= Date.now();
+  });
+  const seasonTracks = readRows_(getSheet_(SETTINGS.sheetNames.seasonTracks));
+  const tracks = readRows_(getSheet_(SETTINGS.sheetNames.tracks));
+  const playerItem = form.getItems(FormApp.ItemType.LIST).find(function (item) { return item.getTitle() === FORM_FIELDS.player; });
+  const trackItem = form.getItems(FormApp.ItemType.LIST).find(function (item) { return item.getTitle() === FORM_FIELDS.track; });
+  const trackChoices = seasonTracks.filter(function (row) {
+    return seasons.some(function (season) { return season.seasonId === row.seasonId; });
+  }).map(function (row) {
+    const track = tracks.find(function (candidate) { return candidate.trackId === row.trackId; });
+    return row.seasonId + ' | ' + (track ? track.name : row.trackId) + ' | ' + row.cc + 'cc';
+  });
+
+  if (!playerItem || !trackItem) throw new Error('No se han encontrado las preguntas desplegables del formulario.');
+  if (!players.length) throw new Error('No hay jugadores activos en Players.');
+  if (!trackChoices.length) throw new Error('No hay pistas de una temporada abierta.');
+  playerItem.asListItem().setChoiceValues(players.map(function (player) {
+    return player.playerId + ' | ' + player.displayName;
+  }));
+  trackItem.asListItem().setChoiceValues(trackChoices);
+  SpreadsheetApp.getUi().alert('Opciones del formulario actualizadas.');
+}
+
+function onFormSubmit(event) {
+  try {
+    const values = event.namedValues || {};
+    const get = function (key) { return values[key] && values[key][0] ? values[key][0].trim() : ''; };
+    const playerValue = get(FORM_FIELDS.player);
+    const trackValue = get(FORM_FIELDS.track);
+    const timeValue = get(FORM_FIELDS.time);
+    const submittedEmail = getSubmittedEmail_(event);
+    const playerId = playerValue.split(' | ')[0];
+    const trackParts = trackValue.split(' | ');
+    const seasonId = trackParts[0];
+    const cc = Number(String(trackParts[trackParts.length - 1]).replace(/[^0-9]/g, '')) || 150;
+    const trackName = trackParts.slice(1, -1).join(' | ');
+    const timeMs = parseTimeToMs_(timeValue);
+    const now = new Date();
+    const season = readRows_(getSheet_(SETTINGS.sheetNames.seasons)).find(function (row) { return row.seasonId === seasonId; });
+    const tracks = readRows_(getSheet_(SETTINGS.sheetNames.tracks));
+    const track = tracks.find(function (row) { return row.name === trackName; });
+    const player = readRows_(getSheet_(SETTINGS.sheetNames.players)).find(function (row) {
+      return row.playerId === playerId && isTruthy_(row.active);
+    });
+    const authorizedPlayer = readRows_(getSheet_(SETTINGS.sheetNames.players)).find(function (row) {
+      return isTruthy_(row.active) && normalizeEmail_(row.email) === normalizeEmail_(submittedEmail);
+    });
+
+    if (!submittedEmail) throw new Error('No se ha podido verificar el correo del remitente.');
+    if (!authorizedPlayer) throw new Error('El correo del remitente no está autorizado en Players.');
+    if (!playerId || !player || !seasonId || !track || !timeMs || !season) throw new Error('Faltan datos obligatorios o el tiempo no es válido.');
+    if (authorizedPlayer.playerId !== playerId) throw new Error('El correo autorizado no coincide con el jugador seleccionado.');
+    if (Date.now() > new Date(season.deadline).getTime()) throw new Error('La temporada ya está cerrada.');
+
+    const seasonTrack = readRows_(getSheet_(SETTINGS.sheetNames.seasonTracks)).find(function (row) {
+      return row.seasonId === seasonId && row.trackId === track.trackId && Number(row.cc) === cc;
+    });
+    if (!seasonTrack) throw new Error('La pista no pertenece a esa temporada.');
+
+    const proof = get(FORM_FIELDS.proof) || get(FORM_FIELDS.proofUrl);
+    getSheet_(SETTINGS.sheetNames.times).appendRow([
+      now,
+      seasonId,
+      track.trackId,
+      playerId,
+      timeMs,
+      cc,
+      proof,
+      'PENDING',
+      'FORM',
+      get(FORM_FIELDS.comments)
+    ]);
+  } catch (error) {
+    getSheet_(SETTINGS.sheetNames.errors).appendRow([
+      new Date(),
+      'FORM_SUBMISSION',
+      error.message,
+      JSON.stringify(event && event.namedValues ? event.namedValues : {})
+    ]);
+  }
+}
+
+function installAutomation() {
+  removeTriggers_('syncRetroRewindCatalog');
+  ScriptApp.newTrigger('syncRetroRewindCatalog').timeBased().everyDays(1).atHour(4).create();
+  SpreadsheetApp.getUi().alert('Sincronización diaria instalada. La hoja comprobará el catálogo cada día.');
+}
+
+function doGet(event) {
+  const payload = JSON.stringify(buildPublicData_());
+  const callback = event && event.parameter && event.parameter.callback;
+  if (callback && /^[A-Za-z_$][\w$]*$/.test(callback)) {
+    return ContentService.createTextOutput(callback + '(' + payload + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
+}
+
+function buildPublicData_() {
+  const config = getConfig_();
+  const tracks = readRows_(getSheet_(SETTINGS.sheetNames.tracks));
+  const seasons = readRows_(getSheet_(SETTINGS.sheetNames.seasons));
+  const currentSeasonId = seasons.slice().sort(function (a, b) { return b.seasonId.localeCompare(a.seasonId); })[0];
+  return {
+    meta: {
+      currentSeasonId: currentSeasonId ? currentSeasonId.seasonId : '',
+      catalogVersion: config.CATALOG_VERSION || 'desconocida',
+      lastUpdated: new Date().toISOString(),
+      timezone: config.TIMEZONE || SETTINGS.timezone,
+      sourceCatalogUrl: config.SOURCE_CATALOG_URL || SETTINGS.sourceCatalogUrl,
+      rules: {
+        defaultCc: 150,
+        max200ccPerSeason: 1,
+        glitchesAllowed: true,
+        deadline: 'last-day-23:59',
+        pointsByPosition: SETTINGS.pointsByPosition,
+        completionBonus: 2,
+        starTrackMultiplier: 2
+      }
+    },
+    players: readRows_(getSheet_(SETTINGS.sheetNames.players)).map(function (row) {
+      return { id: row.playerId, displayName: row.displayName, color: row.color, active: isTruthy_(row.active) };
+    }),
+    tracks: tracks.map(function (row) {
+      return {
+        id: row.trackId,
+        name: row.name,
+        originGame: row.originGame,
+        isWiiOriginal: isTruthy_(row.isWiiOriginal),
+        category: row.category || (isTruthy_(row.isWiiOriginal) ? 'wii-original' : 'retro'),
+        console: row.console || detectConsole_(row.name),
+        active: isTruthy_(row.active),
+        retiredAt: row.retiredAt || ''
+      };
+    }),
+    seasons: seasons.map(function (row) {
+      return {
+        id: row.seasonId,
+        label: row.label,
+        status: row.status,
+        deadline: dateValue_(row.deadline),
+        generatedAt: dateValue_(row.generatedAt),
+        catalogVersion: row.catalogVersion,
+        starTrackId: row.starTrackId,
+        notes: row.notes || ''
+      };
+    }),
+    seasonTracks: readRows_(getSheet_(SETTINGS.sheetNames.seasonTracks)).map(function (row) {
+      return {
+        seasonId: row.seasonId,
+        slot: Number(row.slot),
+        trackId: row.trackId,
+        cc: Number(row.cc),
+        isStar: isTruthy_(row.isStar)
+      };
+    }),
+    times: readRows_(getSheet_(SETTINGS.sheetNames.times)).map(function (row) {
+      return {
+        submittedAt: dateValue_(row.submittedAt),
+        seasonId: row.seasonId,
+        trackId: row.trackId,
+        playerId: row.playerId,
+        timeMs: Number(row.timeMs),
+        cc: Number(row.cc),
+        proofUrl: row.proofUrl || '',
+        verified: row.verified || 'PENDING'
+      };
+    }).filter(function (row) {
+      return row.seasonId && row.trackId && row.playerId && Number.isFinite(row.timeMs);
+    })
+  };
+}
+
+function ensureSheet_(spreadsheet, name, headers) {
+  let sheet = spreadsheet.getSheetByName(name);
+  if (!sheet) sheet = spreadsheet.insertSheet(name);
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  } else {
+    const existingHeaders = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0];
+    headers.forEach(function (header) {
+      if (existingHeaders.indexOf(header) >= 0) return;
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header);
+      existingHeaders.push(header);
+    });
+  }
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+  return sheet;
+}
+
+function getSheet_(name) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
+  if (!sheet) throw new Error('No existe la pestaña ' + name + '. Ejecuta Preparar hoja.');
+  return sheet;
+}
+
+function readRows_(sheet) {
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow < 2 || lastColumn < 1) return [];
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  return sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues().map(function (values) {
+    const row = {};
+    headers.forEach(function (header, index) { row[header] = normalizeSheetValue_(header, values[index]); });
+    return row;
+  }).filter(function (row) {
+    return Object.keys(row).some(function (key) { return row[key] !== ''; });
+  });
+}
+
+function normalizeSheetValue_(header, value) {
+  const identifierHeaders = ['seasonId', 'trackId', 'playerId'];
+  if (identifierHeaders.indexOf(header) < 0) return value;
+  if (value === '' || value === null || value === undefined) return '';
+  if (header === 'seasonId' && value instanceof Date) {
+    return Utilities.formatDate(value, SETTINGS.timezone, 'yyyy-MM');
+  }
+  return String(value).trim();
+}
+
+function writeRows_(sheet, headers, rows) {
+  const currentRows = Math.max(0, sheet.getLastRow() - 1);
+  if (currentRows) sheet.getRange(2, 1, currentRows, headers.length).clearContent();
+  if (!rows.length) return;
+  const values = rows.map(function (row) {
+    return headers.map(function (header) { return row[header] === undefined ? '' : row[header]; });
+  });
+  sheet.getRange(2, 1, values.length, headers.length).setValues(values);
+}
+
+function getConfig_() {
+  const sheet = getSheet_(SETTINGS.sheetNames.config);
+  const rows = readRows_(sheet);
+  const result = {};
+  rows.forEach(function (row) { result[row.key] = row.value; });
+  return result;
+}
+
+function setConfig_(key, value) {
+  const sheet = getSheet_(SETTINGS.sheetNames.config);
+  const rows = readRows_(sheet);
+  const rowIndex = rows.findIndex(function (row) { return row.key === key; });
+  if (rowIndex >= 0) {
+    sheet.getRange(rowIndex + 2, 2).setValue(value);
+  } else {
+    sheet.appendRow([key, value]);
+  }
+}
+
+function formatTrackSheet_(sheet) {
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow < 1 || lastColumn < 1) return;
+
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const column = function (name) { return headers.indexOf(name) + 1; };
+  const nameColumn = column('name');
+  const categoryColumn = column('category');
+  const consoleColumn = column('console');
+  const activeColumn = column('active');
+  const header = sheet.getRange(1, 1, 1, lastColumn);
+
+  header
+    .setBackground('#202124')
+    .setFontColor('#ffffff')
+    .setFontWeight('bold')
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+  header.setWrap(true);
+  sheet.setRowHeight(1, 34);
+  sheet.setFrozenRows(1);
+  sheet.setTabColor('#d7ff4f');
+
+  if (lastRow < 2) return;
+  const rows = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
+  const backgrounds = rows.map(function (row) {
+    const inactive = activeColumn > 0 && !isTruthy_(row[activeColumn - 1]);
+    return row.map(function () { return inactive ? '#f1f3f4' : '#ffffff'; });
+  });
+  const fontColors = rows.map(function (row) {
+    const inactive = activeColumn > 0 && !isTruthy_(row[activeColumn - 1]);
+    return row.map(function () { return inactive ? '#9aa0a6' : '#202124'; });
+  });
+
+  const categoryColors = {
+    retro: '#d9eaf7',
+    'wii-original': '#d9ead3',
+    custom: '#fce5cd'
+  };
+  const consoleColors = {
+    SNES: '#f4cccc',
+    N64: '#c9daf8',
+    GBA: '#d9ead3',
+    GCN: '#d9d2e9',
+    DS: '#fff2cc',
+    Wii: '#b6d7a8',
+    'Wii U': '#cfe2f3',
+    '3DS': '#ead1dc',
+    Tour: '#fce5cd',
+    RMX: '#d9d2e9',
+    'Arcade GP': '#f4cccc',
+    Switch: '#d0e0e3',
+    'Switch 2': '#d0e0e3',
+    Custom: '#ead1dc'
+  };
+
+  rows.forEach(function (row, rowIndex) {
+    const category = categoryColumn > 0 ? String(row[categoryColumn - 1] || '') : '';
+    const consoleName = consoleColumn > 0 ? String(row[consoleColumn - 1] || '') : '';
+    const inactive = activeColumn > 0 && !isTruthy_(row[activeColumn - 1]);
+    if (categoryColumn > 0 && !inactive) backgrounds[rowIndex][categoryColumn - 1] = categoryColors[category] || '#eeeeee';
+    if (consoleColumn > 0 && !inactive) backgrounds[rowIndex][consoleColumn - 1] = consoleColors[consoleName] || '#eeeeee';
+    if (nameColumn > 0 && !inactive) backgrounds[rowIndex][nameColumn - 1] = consoleColors[consoleName] || '#f8f9fa';
+    if (activeColumn > 0) {
+      backgrounds[rowIndex][activeColumn - 1] = inactive ? '#f4cccc' : '#d9ead3';
+      fontColors[rowIndex][activeColumn - 1] = inactive ? '#990000' : '#274e13';
+    }
+  });
+
+  const dataRange = sheet.getRange(2, 1, lastRow - 1, lastColumn);
+  dataRange.setBackgrounds(backgrounds).setFontColors(fontColors).setVerticalAlignment('middle');
+  dataRange.setFontSize(10);
+  if (nameColumn > 0) sheet.setColumnWidth(nameColumn, 220);
+  if (categoryColumn > 0) sheet.setColumnWidth(categoryColumn, 115);
+  if (consoleColumn > 0) sheet.setColumnWidth(consoleColumn, 95);
+  if (activeColumn > 0) sheet.setColumnWidth(activeColumn, 75);
+  sheet.autoResizeColumns(1, Math.max(1, lastColumn));
+  if (nameColumn > 0) sheet.setColumnWidth(nameColumn, 220);
+  if (sheet.getFilter()) sheet.getFilter().remove();
+  sheet.getRange(1, 1, lastRow, lastColumn).createFilter();
+}
+
+function previousSeasonIds_(seasonId, amount) {
+  const [year, month] = seasonId.split('-').map(Number);
+  const ids = [];
+  for (let offset = 1; offset <= Number(amount); offset++) {
+    const date = new Date(year, month - 1 - offset, 1);
+    ids.push(date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0'));
+  }
+  return ids;
+}
+
+function lastDayOfMonth_(year, monthIndex) {
+  return new Date(year, monthIndex + 1, 0, 23, 59, 59);
+}
+
+function seasonLabel_(year, monthIndex) {
+  const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  return months[monthIndex] + ' ' + year;
+}
+
+function parseTimeToMs_(value) {
+  const input = String(value || '').trim().replace(',', '.');
+  if (!input) return 0;
+  if (/^\d+$/.test(input)) return Number(input);
+  const parts = input.split(':').map(Number);
+  if (parts.some(function (part) { return !Number.isFinite(part); })) return 0;
+  if (parts.length === 2 && parts[1] < 60) return Math.round(parts[0] * 60000 + parts[1] * 1000);
+  if (parts.length === 3 && parts[1] < 60 && parts[2] < 60) return Math.round(parts[0] * 3600000 + parts[1] * 60000 + parts[2] * 1000);
+  return 0;
+}
+
+function getSubmittedEmail_(event) {
+  const namedValues = event && event.namedValues ? event.namedValues : {};
+  const emailKey = Object.keys(namedValues).find(function (key) {
+    return /email|correo|e-mail/i.test(String(key));
+  });
+  if (emailKey && namedValues[emailKey] && namedValues[emailKey][0]) return String(namedValues[emailKey][0]).trim();
+  if (event && event.response && typeof event.response.getRespondentEmail === 'function') {
+    return String(event.response.getRespondentEmail() || '').trim();
+  }
+  return '';
+}
+
+function normalizeEmail_(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function findVersion_(values) {
+  for (let index = 0; index < values.length; index++) {
+    const match = String(values[index] || '').match(/v\d+(?:\.\d+)+/i);
+    if (match) return match[0];
+  }
+  return '';
+}
+
+function normalizeHeader_(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function isBattleArenaSheet_(name) {
+  return /battle|arena/i.test(String(name || ''));
+}
+
+function sourceCategory_(sheetName, isWiiOriginal) {
+  if (/custom/i.test(String(sheetName || ''))) return 'custom';
+  if (isWiiOriginal) return 'wii-original';
+  return 'retro';
+}
+
+function detectConsole_(trackName) {
+  const name = String(trackName || '');
+  const consoles = [
+    [/^Wii U\b/i, 'Wii U'],
+    [/^Wii\b/i, 'Wii'],
+    [/^SNES\b/i, 'SNES'],
+    [/^N64\b/i, 'N64'],
+    [/^GBA\b/i, 'GBA'],
+    [/^GCN\b/i, 'GCN'],
+    [/^3DS\b/i, '3DS'],
+    [/^DS\b/i, 'DS'],
+    [/^Tour\b/i, 'Tour'],
+    [/^RMX\b/i, 'RMX'],
+    [/^GP\b/i, 'Arcade GP'],
+    [/^SW2\b/i, 'Switch 2'],
+    [/^SW\b/i, 'Switch']
+  ];
+  const match = consoles.find(function (entry) { return entry[0].test(name); });
+  return match ? match[1] : 'Custom';
+}
+
+function compareTracks_(left, right) {
+  const categoryOrder = {
+    retro: 0,
+    'wii-original': 1,
+    custom: 2
+  };
+  const consoleOrder = {
+    SNES: 0,
+    N64: 1,
+    GBA: 2,
+    GCN: 3,
+    DS: 4,
+    Wii: 5,
+    '3DS': 6,
+    'Wii U': 7,
+    Tour: 8,
+    RMX: 9,
+    'Arcade GP': 10,
+    Switch: 11,
+    'Switch 2': 12,
+    Custom: 99
+  };
+  const leftCategory = categoryOrder[left.category] === undefined ? 99 : categoryOrder[left.category];
+  const rightCategory = categoryOrder[right.category] === undefined ? 99 : categoryOrder[right.category];
+  const leftConsole = consoleOrder[left.console] === undefined ? 99 : consoleOrder[left.console];
+  const rightConsole = consoleOrder[right.console] === undefined ? 99 : consoleOrder[right.console];
+  const leftActive = isTruthy_(left.active) ? 0 : 1;
+  const rightActive = isTruthy_(right.active) ? 0 : 1;
+  return leftCategory - rightCategory || leftConsole - rightConsole || leftActive - rightActive || String(left.name || '').localeCompare(String(right.name || ''));
+}
+
+function cell_(row, index) {
+  return index >= 0 ? String(row[index] || '').trim() : '';
+}
+
+function slug_(value) {
+  return String(value || 'track')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'track';
+}
+
+function isTruthy_(value) {
+  const normalized = String(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return value === true || normalized === 'true' || normalized === '1' || normalized === 'si';
+}
+
+function dateValue_(value) {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toISOString();
+}
+
+function randomItem_(items) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function shuffle_(items) {
+  const result = items.slice();
+  for (let index = result.length - 1; index > 0; index--) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const current = result[index];
+    result[index] = result[swapIndex];
+    result[swapIndex] = current;
+  }
+  return result;
+}
+
+function removeTriggers_(functionName) {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === functionName) ScriptApp.deleteTrigger(trigger);
+  });
+}

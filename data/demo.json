@@ -1,0 +1,75 @@
+{
+  "meta": {
+    "currentSeasonId": "2026-09",
+    "catalogVersion": "v6.12.2",
+    "lastUpdated": "2026-09-04T18:20:00+02:00",
+    "timezone": "Europe/Madrid"
+  },
+  "players": [
+    { "id": "roy", "displayName": "Roy", "color": "#d7ff4f", "active": true },
+    { "id": "lucia", "displayName": "Lucía", "color": "#ff6b9d", "active": true },
+    { "id": "dani", "displayName": "Dani", "color": "#65d7ff", "active": true },
+    { "id": "neo", "displayName": "Neo", "color": "#ffc857", "active": true }
+  ],
+  "tracks": [
+    { "id": "wii-luigi-circuit", "name": "Wii Luigi Circuit", "originGame": "Mario Kart Wii", "isWiiOriginal": true, "active": true },
+    { "id": "n64-yoshi-valley", "name": "N64 Yoshi Valley", "originGame": "Mario Kart 64", "isWiiOriginal": false, "active": true },
+    { "id": "gcn-dk-mountain", "name": "GCN DK Mountain", "originGame": "Mario Kart: Double Dash!!", "isWiiOriginal": false, "active": true },
+    { "id": "snes-rainbow-road", "name": "SNES Rainbow Road", "originGame": "Super Mario Kart", "isWiiOriginal": false, "active": true },
+    { "id": "ct-mushroom-city", "name": "GCN Mushroom City", "originGame": "Mario Kart: Double Dash!!", "isWiiOriginal": false, "active": true },
+    { "id": "retired-wii-desert", "name": "Wii Dry Dry Ruins", "originGame": "Mario Kart Wii", "isWiiOriginal": true, "active": false, "retiredAt": "2026-08-21T10:00:00+02:00" }
+  ],
+  "seasons": [
+    {
+      "id": "2026-09",
+      "label": "septiembre 2026",
+      "status": "open",
+      "deadline": "2026-09-30T23:59:59+02:00",
+      "generatedAt": "2026-09-01T09:00:00+02:00",
+      "catalogVersion": "v6.12.2",
+      "starTrackId": "wii-luigi-circuit"
+    },
+    {
+      "id": "2026-08",
+      "label": "agosto 2026",
+      "status": "closed",
+      "deadline": "2026-08-31T23:59:59+02:00",
+      "generatedAt": "2026-08-01T09:00:00+02:00",
+      "catalogVersion": "v6.12.1",
+      "starTrackId": "n64-yoshi-valley"
+    }
+  ],
+  "seasonTracks": [
+    { "seasonId": "2026-09", "slot": 1, "trackId": "wii-luigi-circuit", "cc": 150, "isStar": true },
+    { "seasonId": "2026-09", "slot": 2, "trackId": "n64-yoshi-valley", "cc": 150, "isStar": false },
+    { "seasonId": "2026-09", "slot": 3, "trackId": "gcn-dk-mountain", "cc": 200, "isStar": false },
+    { "seasonId": "2026-09", "slot": 4, "trackId": "snes-rainbow-road", "cc": 150, "isStar": false },
+    { "seasonId": "2026-09", "slot": 5, "trackId": "ct-mushroom-city", "cc": 150, "isStar": false },
+    { "seasonId": "2026-08", "slot": 1, "trackId": "retired-wii-desert", "cc": 150, "isStar": false },
+    { "seasonId": "2026-08", "slot": 2, "trackId": "n64-yoshi-valley", "cc": 150, "isStar": true },
+    { "seasonId": "2026-08", "slot": 3, "trackId": "gcn-dk-mountain", "cc": 150, "isStar": false },
+    { "seasonId": "2026-08", "slot": 4, "trackId": "snes-rainbow-road", "cc": 150, "isStar": false },
+    { "seasonId": "2026-08", "slot": 5, "trackId": "ct-mushroom-city", "cc": 150, "isStar": false }
+  ],
+  "times": [
+    { "seasonId": "2026-09", "trackId": "wii-luigi-circuit", "playerId": "roy", "timeMs": 101842, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-09", "trackId": "wii-luigi-circuit", "playerId": "lucia", "timeMs": 102411, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-09", "trackId": "wii-luigi-circuit", "playerId": "dani", "timeMs": 104029, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-09", "trackId": "n64-yoshi-valley", "playerId": "roy", "timeMs": 128501, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-09", "trackId": "n64-yoshi-valley", "playerId": "lucia", "timeMs": 127994, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-09", "trackId": "n64-yoshi-valley", "playerId": "dani", "timeMs": 131244, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-09", "trackId": "gcn-dk-mountain", "playerId": "roy", "timeMs": 134877, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-09", "trackId": "gcn-dk-mountain", "playerId": "lucia", "timeMs": 136212, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-09", "trackId": "gcn-dk-mountain", "playerId": "dani", "timeMs": 133455, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-09", "trackId": "snes-rainbow-road", "playerId": "roy", "timeMs": 154319, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-09", "trackId": "snes-rainbow-road", "playerId": "lucia", "timeMs": 151882, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-09", "trackId": "snes-rainbow-road", "playerId": "dani", "timeMs": 159401, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-09", "trackId": "ct-mushroom-city", "playerId": "roy", "timeMs": 119488, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-09", "trackId": "ct-mushroom-city", "playerId": "lucia", "timeMs": 121601, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-09", "trackId": "ct-mushroom-city", "playerId": "dani", "timeMs": 117923, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-08", "trackId": "retired-wii-desert", "playerId": "roy", "timeMs": 142003, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-08", "trackId": "retired-wii-desert", "playerId": "lucia", "timeMs": 143119, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-08", "trackId": "n64-yoshi-valley", "playerId": "roy", "timeMs": 129777, "proofUrl": "", "verified": "PENDING" },
+    { "seasonId": "2026-08", "trackId": "n64-yoshi-valley", "playerId": "lucia", "timeMs": 128001, "proofUrl": "", "verified": "PENDING" }
+  ]
+}

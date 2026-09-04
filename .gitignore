@@ -1,0 +1,13 @@
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Local editor and deployment files
+.vscode/
+.idea/
+.clasp.json
+
+# Local environment overrides
+*.local
+.env
+.env.*
