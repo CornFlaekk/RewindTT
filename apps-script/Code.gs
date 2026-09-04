@@ -50,6 +50,7 @@ function onOpen() {
     .addItem('Sincronizar catálogo Retro Rewind', 'syncRetroRewindCatalog')
     .addSeparator()
     .addItem('Generar temporada actual', 'generateCurrentSeason')
+    .addItem('Regenerar temporada actual (limpia)', 'resetCurrentSeason')
     .addItem('Generar temporada siguiente', 'generateNextSeason')
     .addSeparator()
     .addItem('Crear formulario de tiempos', 'setupSubmissionForm')
@@ -178,6 +179,33 @@ function generateCurrentSeason() {
   const now = new Date();
   const current = Utilities.formatDate(now, SETTINGS.timezone, 'yyyy-MM').split('-').map(Number);
   generateSeason_(current[0], current[1] - 1);
+}
+
+function resetCurrentSeason() {
+  const now = new Date();
+  const current = Utilities.formatDate(now, SETTINGS.timezone, 'yyyy-MM').split('-').map(Number);
+  const seasonId = current[0] + '-' + String(current[1]).padStart(2, '0');
+  const seasonSheet = getSheet_(SETTINGS.sheetNames.seasons);
+  const seasonExists = readRows_(seasonSheet).some(function (row) { return row.seasonId === seasonId; });
+  if (!seasonExists) {
+    SpreadsheetApp.getUi().alert('No existe una temporada actual para regenerar.');
+    return;
+  }
+
+  const ui = SpreadsheetApp.getUi();
+  const confirmation = ui.alert(
+    'Regenerar ' + seasonId,
+    'Se borrarán los tiempos guardados de esta temporada, la selección actual y las opciones antiguas del formulario. ¿Continuar?',
+    ui.ButtonSet.YES_NO
+  );
+  if (confirmation !== ui.Button.YES) return;
+
+  deleteRowsByValue_(getSheet_(SETTINGS.sheetNames.times), 'seasonId', seasonId);
+  deleteRowsByValue_(getSheet_(SETTINGS.sheetNames.seasonTracks), 'seasonId', seasonId);
+  deleteRowsByValue_(seasonSheet, 'seasonId', seasonId);
+  generateSeason_(current[0], current[1] - 1);
+
+  if (getConfig_().FORM_ID) refreshSubmissionForm();
 }
 
 function generateNextSeason() {
@@ -576,6 +604,21 @@ function setConfig_(key, value) {
     sheet.getRange(rowIndex + 2, 2).setValue(value);
   } else {
     sheet.appendRow([key, value]);
+  }
+}
+
+function deleteRowsByValue_(sheet, header, expectedValue) {
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow < 2 || lastColumn < 1) return;
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const columnIndex = headers.indexOf(header);
+  if (columnIndex < 0) return;
+
+  for (let rowNumber = lastRow; rowNumber >= 2; rowNumber--) {
+    const value = sheet.getRange(rowNumber, columnIndex + 1).getValue();
+    const normalizedValue = normalizeSheetValue_(header, value);
+    if (String(normalizedValue) === String(expectedValue)) sheet.deleteRow(rowNumber);
   }
 }
 

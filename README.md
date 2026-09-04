@@ -66,6 +66,8 @@ Si la hoja oficial cambia sus columnas, revisa `sourceCatalogUrl` y el mapeo de 
 
 Puedes cambiar `CHANCE_OF_200CC` en `Config`, usando valores entre `0` y `1`.
 
+Si necesitas cambiar una temporada ya creada, usa `Rewind TT > Regenerar temporada actual (limpia)`. Esta acción pide confirmación y borra los tiempos, la selección y las opciones de formulario de la temporada actual antes de sortear cuatro pistas nuevas. No la uses después de empezar una competición real salvo que queráis reiniciarla.
+
 ## Tiempos y fotos
 
 El formulario acepta tiempos como `1:42.345` o `102345` milisegundos. Cada envío se guarda en `Times`; la web usa automáticamente la mejor marca de cada jugador y pista.
