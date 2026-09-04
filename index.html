@@ -27,6 +27,7 @@
         <nav class="site-nav" aria-label="Navegación principal">
           <a href="#pistas">Pistas</a>
           <a href="#clasificacion">Clasificación</a>
+          <a href="#perfiles">Perfiles</a>
           <a href="#reglas">Reglas</a>
         </nav>
         <a class="button button-small button-outline header-submit" href="#enviar">
@@ -124,10 +125,24 @@
           </div>
         </section>
 
+        <section id="perfiles" class="section-wrap content-section profiles-section" aria-labelledby="profiles-title">
+          <div class="section-heading-row">
+            <div>
+              <p class="section-kicker">03 / Los pilotos</p>
+              <h2 id="profiles-title">Perfil de jugador</h2>
+            </div>
+            <label class="profile-picker">
+              <span class="sr-only">Elegir jugador</span>
+              <select id="profile-select" aria-label="Elegir jugador"></select>
+            </label>
+          </div>
+          <div id="profile-card" class="profile-card" aria-live="polite"></div>
+        </section>
+
         <section class="section-wrap content-section history-section" aria-labelledby="history-title">
           <div class="section-heading-row">
             <div>
-              <p class="section-kicker">03 / Archivo</p>
+              <p class="section-kicker">04 / Archivo</p>
               <h2 id="history-title">Cada mes cuenta</h2>
             </div>
             <p class="section-note">Los tiempos retirados no desaparecen</p>
@@ -138,7 +153,7 @@
         <section id="reglas" class="section-wrap content-section rules-section" aria-labelledby="rules-title">
           <div class="section-heading-row">
             <div>
-              <p class="section-kicker">04 / Reglamento</p>
+              <p class="section-kicker">05 / Reglamento</p>
               <h2 id="rules-title">Todo vale. El crono decide.</h2>
             </div>
           </div>

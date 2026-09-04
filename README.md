@@ -12,9 +12,9 @@ La web es estática y no contiene credenciales. La hoja de Google Sheets es la f
 4. Ejecuta `Rewind TT > Preparar hoja` y acepta los permisos.
 5. En la pestaña `Players`, añade jugadores con estas columnas:
 
-   `playerId | displayName | color | active | joinedAt | email`
+   `playerId | displayName | color | active | joinedAt | email | avatarUrl`
 
-   Ejemplo: `roy | Roy | #d7ff4f | TRUE | 2026-09-04 | roy@example.com`.
+   Ejemplo: `roy | Roy | #d7ff4f | TRUE | 2026-09-04 | roy@example.com | https://.../roy.png`.
 
 6. Ejecuta `Rewind TT > Sincronizar catálogo Retro Rewind`.
 7. Ejecuta `Rewind TT > Generar temporada actual`.
@@ -47,6 +47,8 @@ El script utiliza la hoja pública de catálogo mantenida para Retro Rewind. `Si
 - Detecta las pistas originales de Mario Kart Wii por su nombre `Wii ...`, excluyendo `Wii U ...`.
 
 La pestaña `Tracks` también se formatea automáticamente: `category` distingue `retro`, `wii-original` y `custom`, `console` identifica la plataforma y las celdas reciben colores por consola. Las pistas retiradas aparecen atenuadas y la tabla queda filtrable con la cabecera congelada.
+
+La columna opcional `imageUrl` de `Tracks` permite añadir una miniatura pública para cada pista. La sincronización conserva esas URLs aunque se actualice el catálogo. Si no hay imagen, la web genera una tarjeta gráfica con el color y el icono de la consola.
 
 En cada sincronización el catálogo se ordena por categoría y, dentro de `retro`, por antigüedad de consola: SNES, N64, GBA, GCN, DS, Wii, 3DS, Wii U, Tour, RMX, Arcade GP y Switch. Las pistas activas aparecen antes que las retiradas dentro de cada grupo.
 
@@ -127,6 +129,10 @@ La web calcula estos puntos por pista:
 
 Completar las cuatro pistas suma `2` puntos. Los empates reciben la misma puntuación. En la clasificación visual, el desempate secundario es número de victorias y después tiempo acumulado.
 
+## Perfiles y presentación
+
+La web incluye una vista de perfil seleccionable por jugador con avatar, puntos del mes, puntos generales, victorias, pendientes y mejores marcas del mes. El avatar se configura con `Players.avatarUrl`; debe ser una URL de imagen accesible desde el navegador. Las tarjetas de pistas muestran consola, categoría, 150/200cc, pista estrella y miniatura opcional.
+
 ## Desarrollo local
 
 No hace falta instalar dependencias. Abre la carpeta con un servidor estático, por ejemplo:
@@ -159,12 +165,10 @@ Después visita `http://localhost:8000`. Mientras `config.js` use `data/demo.jso
 
 ### Web
 
-- Mostrar categoría y consola con colores también en las tarjetas públicas.
-- Añadir perfiles individuales de jugadores.
 - Añadir estadísticas de mejora, rachas y récords personales.
 - Crear una página de enfrentamientos directos.
 - Añadir filtros por mes, consola y categoría.
-- Añadir imágenes o miniaturas de las pistas.
+- Añadir un repositorio de imágenes propio para no depender de URLs externas.
 
 ### Reglas y diversión
 

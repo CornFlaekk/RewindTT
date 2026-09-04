@@ -6,6 +6,7 @@
     data: null,
     selectedSeasonId: null,
     countdownTimer: null,
+    selectedPlayerId: null,
     leaderboardMode: "month"
   };
 
@@ -39,6 +40,8 @@
       "track-grid",
       "leaderboard",
       "leaderboard-caption",
+      "profile-select",
+      "profile-card",
       "history-list",
       "submit-button",
       "last-updated",
@@ -77,6 +80,11 @@
           renderLeaderboard(state.data, getSeason(state.data, state.selectedSeasonId));
         }
       });
+    });
+
+    els["profile-select"].addEventListener("change", function (event) {
+      state.selectedPlayerId = event.target.value;
+      renderProfile(state.data, getSeason(state.data, state.selectedSeasonId));
     });
   }
 
@@ -135,6 +143,7 @@
     renderSeasonHeader(data, season);
     renderTracks(data, season);
     renderLeaderboard(data, season);
+    renderProfile(data, season);
     renderHistory(data, season);
     renderSubmitLink();
 
@@ -190,9 +199,12 @@
         if (!track) return "";
         const entries = getTrackEntries(data, season.id, row.trackId, bestTimes);
         const topEntry = entries[0];
+        const consoleMeta = getConsoleMeta(track);
+        const categoryMeta = getCategoryMeta(track);
         const badges = [
+          '<span class="pill pill-console ' + consoleMeta.className + '"><span class="console-pill-icon">' + escapeHtml(consoleMeta.icon) + '</span>' + escapeHtml(consoleMeta.label) + '</span>',
+          '<span class="pill pill-category ' + categoryMeta.className + '">' + escapeHtml(categoryMeta.label) + '</span>',
           row.cc === 200 ? '<span class="pill pill-hot">200cc</span>' : '<span class="pill">150cc</span>',
-          track.isWiiOriginal ? '<span class="pill pill-wii">Wii original</span>' : "",
           row.isStar ? '<span class="pill pill-star">Pista estrella ×2</span>' : ""
         ].join("");
         const entriesMarkup = entries.length
@@ -219,7 +231,7 @@
         return (
           '<article class="track-card' + (row.isStar ? " is-star" : "") + '">' +
           '<div class="track-card-number">0' + (index + 1) + '</div>' +
-          '<div class="track-card-content"><div class="track-card-top"><div class="track-badges">' +
+          '<div class="track-card-content">' + renderTrackArt(track) + '<div class="track-card-top"><div class="track-badges">' +
           badges +
           '</div><span class="track-origin">' +
           escapeHtml(track.originGame || "Retro Rewind") +
@@ -236,6 +248,124 @@
         );
       })
       .join("");
+    bindBrokenImages(els["track-grid"]);
+  }
+
+  function renderProfile(data, season) {
+    const players = data.players.filter(function (player) {
+      return player.active !== false || data.times.some(function (time) {
+        return time.playerId === player.id;
+      });
+    }).sort(function (a, b) {
+      return a.displayName.localeCompare(b.displayName);
+    });
+    if (!players.length) {
+      els["profile-select"].innerHTML = "";
+      els["profile-card"].innerHTML = '<p class="empty-state empty-state-large">Aún no hay jugadores.</p>';
+      return;
+    }
+
+    if (!state.selectedPlayerId || !players.some(function (player) { return player.id === state.selectedPlayerId; })) {
+      state.selectedPlayerId = players[0].id;
+    }
+    els["profile-select"].innerHTML = players.map(function (player) {
+      return '<option value="' + escapeHtml(player.id) + '"' + (player.id === state.selectedPlayerId ? ' selected' : '') + '>' + escapeHtml(player.displayName) + '</option>';
+    }).join("");
+
+    const player = players.find(function (candidate) { return candidate.id === state.selectedPlayerId; });
+    const trackRows = getSeasonTracks(data, season.id);
+    const monthly = calculateScores(data, season, trackRows).find(function (row) { return row.player.id === player.id; });
+    const overall = calculateOverallScores(data).find(function (row) { return row.player.id === player.id; });
+    const bestTimes = getBestTimes(data, season.id);
+    const trackTimes = trackRows.map(function (row) {
+      const track = getTrack(data, row.trackId);
+      const entry = getTrackEntries(data, season.id, row.trackId, bestTimes).find(function (candidate) {
+        return candidate.player.id === player.id;
+      });
+      return { row: row, track: track, entry: entry };
+    });
+
+    els["profile-card"].innerHTML =
+      '<div class="profile-identity"><div class="profile-avatar" style="--player-color:' + escapeHtml(player.color || "#d7ff4f") + '">' +
+      renderAvatarContent(player) +
+      '</div><div><p class="section-kicker">Piloto</p><h3>' + escapeHtml(player.displayName) + '</h3><span>@' + escapeHtml(player.id) + '</span></div></div>' +
+      '<div class="profile-stat-grid"><div><span>Este mes</span><strong>' + (monthly ? monthly.totalPoints : 0) + ' <small>pts</small></strong></div>' +
+      '<div><span>General</span><strong>' + (overall ? overall.totalPoints : 0) + ' <small>pts</small></strong></div>' +
+      '<div><span>Victorias</span><strong>' + (overall ? overall.wins : 0) + '</strong></div>' +
+      '<div><span>Pendientes</span><strong>' + (monthly ? monthly.pending : 0) + '</strong></div></div>' +
+      '<div class="profile-times"><div class="profile-times-head"><span>Mejores marcas · ' + escapeHtml(formatSeasonLabel(season)) + '</span><span>' +
+      (monthly ? monthly.completed : 0) + '/' + trackRows.length + ' pistas</span></div>' +
+      trackTimes.map(function (item) {
+        const time = item.entry ? formatTime(item.entry.timeMs) : "—";
+        const proof = item.entry && item.entry.proofUrl
+          ? '<a href="' + escapeHtml(item.entry.proofUrl) + '" target="_blank" rel="noreferrer">prueba ↗</a>'
+          : "";
+        const status = item.entry && isPending(item.entry.verified) ? '<small class="entry-pending">pendiente</small>' : "";
+        return '<div class="profile-time-row"><span class="profile-track-name"><b>' + escapeHtml(item.track ? item.track.name : item.row.trackId) + '</b><small>' + item.row.cc + 'cc</small></span><span class="profile-time-value">' + time + status + proof + '</span></div>';
+      }).join("") + '</div>';
+    bindBrokenImages(els["profile-card"]);
+  }
+
+  function renderTrackArt(track) {
+    const consoleMeta = getConsoleMeta(track);
+    const image = track.imageUrl
+      ? '<img data-fallback-image src="' + escapeHtml(track.imageUrl) + '" alt="" loading="lazy">'
+      : "";
+    return '<div class="track-art ' + consoleMeta.className + (image ? ' has-image' : '') + '"><div class="art-fallback"><span class="art-console-icon">' + escapeHtml(consoleMeta.icon) + '</span><span>' + escapeHtml(consoleMeta.label) + '</span></div>' + image + '</div>';
+  }
+
+  function renderAvatarContent(player) {
+    const initial = escapeHtml(String(player.displayName || "?").slice(0, 1).toUpperCase());
+    return '<span class="avatar-initial">' + initial + '</span>' + (player.avatarUrl ? '<img data-fallback-image src="' + escapeHtml(player.avatarUrl) + '" alt="" loading="lazy">' : "");
+  }
+
+  function bindBrokenImages(root) {
+    if (!root) return;
+    root.querySelectorAll("img[data-fallback-image]").forEach(function (image) {
+      image.addEventListener("error", function () {
+        const art = image.closest(".track-art");
+        if (art) art.classList.remove("has-image");
+        image.remove();
+      });
+    });
+  }
+
+  function getCategoryMeta(track) {
+    const category = String(track.category || (track.isWiiOriginal ? "wii-original" : "retro")).toLowerCase();
+    if (category === "custom") return { label: "CUSTOM", className: "category-custom" };
+    if (category === "wii-original") return { label: "WII ORIGINAL", className: "category-wii" };
+    return { label: "RETRO", className: "category-retro" };
+  }
+
+  function getConsoleMeta(track) {
+    const name = String(track.console || inferConsole_(track.name));
+    const meta = {
+      SNES: ["SNES", "S", "console-snes"],
+      N64: ["N64", "64", "console-n64"],
+      GBA: ["GBA", "A", "console-gba"],
+      GCN: ["GCN", "G", "console-gcn"],
+      DS: ["DS", "DS", "console-ds"],
+      Wii: ["WII", "W", "console-wii"],
+      "Wii U": ["WII U", "U", "console-wiiu"],
+      "3DS": ["3DS", "3D", "console-3ds"],
+      Tour: ["TOUR", "T", "console-tour"],
+      RMX: ["RMX", "R", "console-rmx"],
+      "Arcade GP": ["ARCADE", "GP", "console-arcade"],
+      Switch: ["SWITCH", "S", "console-switch"],
+      "Switch 2": ["SWITCH 2", "S2", "console-switch"]
+    }[name] || ["CUSTOM", "?", "console-custom"];
+    return { label: meta[0], icon: meta[1], className: meta[2] };
+  }
+
+  function inferConsole_(name) {
+    const value = String(name || "");
+    const prefixes = [
+      [/^Wii U\b/i, "Wii U"], [/^Wii\b/i, "Wii"], [/^SNES\b/i, "SNES"], [/^N64\b/i, "N64"],
+      [/^GBA\b/i, "GBA"], [/^GCN\b/i, "GCN"], [/^3DS\b/i, "3DS"], [/^DS\b/i, "DS"],
+      [/^Tour\b/i, "Tour"], [/^RMX\b/i, "RMX"], [/^GP\b/i, "Arcade GP"], [/^SW2\b/i, "Switch 2"], [/^SW\b/i, "Switch"]
+    ];
+    const result = prefixes.find(function (entry) { return entry[0].test(value); });
+    return result ? result[1] : "Custom";
   }
 
   function renderLeaderboard(data, season) {
@@ -249,7 +379,7 @@
     els["leaderboard"].innerHTML = scoring
       .map(function (row, index) {
         const rankClass = index < 3 ? " rank-top rank-" + (index + 1) : "";
-        const avatar = row.player.displayName.slice(0, 1).toUpperCase();
+        const avatar = renderAvatarContent(row.player);
         const details = isOverall
           ? row.monthsPlayed + (row.monthsPlayed === 1 ? " mes" : " meses") + " · " + row.completed + " pistas"
           : row.completed + "/" + trackRows.length + " pistas";
@@ -262,7 +392,7 @@
           '</span><span class="player-avatar" style="--player-color:' +
           escapeHtml(row.player.color || "#d7ff4f") +
           '">' +
-          escapeHtml(avatar) +
+          avatar +
           '</span><div class="player-info"><strong>' +
           escapeHtml(row.player.displayName) +
           '</strong><span>' +
@@ -278,6 +408,7 @@
         );
       })
       .join("");
+    bindBrokenImages(els["leaderboard"]);
   }
 
   function renderHistory(data, selectedSeason) {

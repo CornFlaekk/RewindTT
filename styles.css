@@ -561,6 +561,100 @@ button {
   color: var(--acid);
 }
 
+.pill-console {
+  gap: 4px;
+  color: var(--console-color, var(--text));
+  border-color: color-mix(in srgb, var(--console-color, var(--line-strong)) 70%, transparent);
+}
+
+.console-pill-icon {
+  font-size: 0.48rem;
+  font-weight: 500;
+}
+
+.pill-category {
+  border-color: var(--line-strong);
+}
+
+.category-retro {
+  color: var(--blue);
+}
+
+.category-wii {
+  color: var(--acid);
+}
+
+.category-custom {
+  color: var(--pink);
+}
+
+.console-snes { --console-color: #ff8888; }
+.console-n64 { --console-color: #82b7ff; }
+.console-gba { --console-color: #a4df91; }
+.console-gcn { --console-color: #c4a5ed; }
+.console-ds { --console-color: #ffe38b; }
+.console-wii { --console-color: #b6e29a; }
+.console-wiiu { --console-color: #8dd8ff; }
+.console-3ds { --console-color: #f2a9cc; }
+.console-tour { --console-color: #ffc184; }
+.console-rmx { --console-color: #c7a8f5; }
+.console-arcade { --console-color: #ff9b9b; }
+.console-switch { --console-color: #a5dfe4; }
+.console-custom { --console-color: #f1a9cb; }
+
+.track-art {
+  position: relative;
+  height: 96px;
+  margin: -20px -19px 17px;
+  overflow: hidden;
+  color: var(--console-color, var(--acid));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--console-color, #d7ff4f) 35%, #1b1b26), #1b1b26 70%);
+}
+
+.track-art::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(120deg, transparent 25%, rgba(255, 255, 255, 0.14) 25.5%, transparent 26%, transparent 63%, rgba(0, 0, 0, 0.28) 63.5%, transparent 64%);
+}
+
+.art-fallback {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 13px 17px;
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: opacity 180ms ease;
+}
+
+.art-console-icon {
+  font-size: 2.45rem;
+  font-weight: 500;
+  letter-spacing: -0.12em;
+  line-height: 0.8;
+}
+
+.track-art.has-image .art-fallback {
+  opacity: 0;
+}
+
+.track-art img {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.85) contrast(1.05);
+}
+
 .track-origin {
   display: block;
   margin-top: 12px;
@@ -726,6 +820,8 @@ button {
 }
 
 .player-avatar {
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   grid-column: 2;
   align-items: center;
@@ -738,6 +834,20 @@ button {
   color: var(--player-color);
   font-family: var(--mono);
   font-size: 0.69rem;
+}
+
+.player-avatar img,
+.profile-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-initial {
+  position: relative;
+  z-index: 1;
 }
 
 .player-info {
@@ -786,6 +896,157 @@ button {
 
 .rank-1 .player-points {
   font-size: 1.35rem;
+}
+
+.profile-picker select {
+  min-height: 38px;
+  min-width: 190px;
+  padding: 0 33px 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  outline: none;
+  color: var(--text);
+  background: var(--panel);
+  font-family: var(--mono);
+  font-size: 0.63rem;
+}
+
+.profile-picker select:focus {
+  border-color: var(--acid);
+}
+
+.profile-card {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.profile-identity {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  min-height: 250px;
+  padding: 28px;
+  border-right: 1px solid var(--line);
+  background: linear-gradient(135deg, rgba(215, 255, 79, 0.08), transparent 55%);
+}
+
+.profile-avatar {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 86px;
+  height: 86px;
+  overflow: hidden;
+  border: 1px solid var(--player-color, var(--acid));
+  border-radius: 50%;
+  color: var(--player-color, var(--acid));
+  font-family: var(--mono);
+  font-size: 2rem;
+}
+
+.profile-identity h3 {
+  margin: 0 0 8px;
+  font-size: clamp(1.6rem, 3vw, 2.7rem);
+  font-weight: 500;
+  letter-spacing: -0.08em;
+}
+
+.profile-identity > div:last-child > span {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.58rem;
+}
+
+.profile-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  padding: 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--line);
+}
+
+.profile-stat-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  min-height: 72px;
+  padding: 13px;
+  background: var(--panel);
+}
+
+.profile-stat-grid span,
+.profile-times-head,
+.profile-time-row,
+.profile-time-row small,
+.profile-time-value a {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.profile-stat-grid span,
+.profile-times-head,
+.profile-time-row small {
+  color: var(--muted);
+}
+
+.profile-stat-grid strong {
+  color: var(--acid);
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+
+.profile-stat-grid small {
+  color: var(--muted);
+  font-size: 0.55rem;
+}
+
+.profile-times {
+  padding: 0 20px 18px;
+}
+
+.profile-times-head,
+.profile-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  min-height: 41px;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-track-name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-track-name b {
+  color: var(--text);
+  font-family: var(--display);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  text-transform: none;
+}
+
+.profile-time-value {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  color: var(--text);
+}
+
+.profile-time-value a {
+  color: var(--acid);
 }
 
 .score-card {
@@ -1069,6 +1330,25 @@ button {
 
   .season-picker select {
     width: 100%;
+  }
+
+  .profile-picker,
+  .profile-picker select {
+    width: 100%;
+  }
+
+  .profile-card {
+    display: block;
+  }
+
+  .profile-identity {
+    min-height: 190px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .profile-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .content-section {

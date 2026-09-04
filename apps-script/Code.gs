@@ -25,10 +25,10 @@ const SETTINGS = {
     errors: 'Errors'
   },
   headers: {
-    Tracks: ['trackId', 'name', 'originGame', 'isWiiOriginal', 'sourceFile', 'sourceVersion', 'active', 'retiredAt', 'lastSeenAt', 'category', 'console'],
+    Tracks: ['trackId', 'name', 'originGame', 'isWiiOriginal', 'sourceFile', 'sourceVersion', 'active', 'retiredAt', 'lastSeenAt', 'category', 'console', 'imageUrl'],
     Seasons: ['seasonId', 'label', 'status', 'deadline', 'generatedAt', 'catalogVersion', 'starTrackId', 'notes'],
     SeasonTracks: ['seasonId', 'slot', 'trackId', 'cc', 'isStar'],
-    Players: ['playerId', 'displayName', 'color', 'active', 'joinedAt', 'email'],
+    Players: ['playerId', 'displayName', 'color', 'active', 'joinedAt', 'email', 'avatarUrl'],
     Times: ['submittedAt', 'seasonId', 'trackId', 'playerId', 'timeMs', 'cc', 'proofUrl', 'verified', 'source', 'comments'],
     Config: ['key', 'value'],
     Errors: ['createdAt', 'type', 'message', 'rawData']
@@ -92,6 +92,11 @@ function syncRetroRewindCatalog() {
   const config = getConfig_();
   const sourceId = config.SOURCE_CATALOG_ID || SETTINGS.sourceCatalogId;
   const sourceBook = SpreadsheetApp.openById(sourceId);
+  const trackSheet = getSheet_(SETTINGS.sheetNames.tracks);
+  ensureSheet_(SpreadsheetApp.getActiveSpreadsheet(), SETTINGS.sheetNames.tracks, SETTINGS.headers.Tracks);
+  const existingTracks = readRows_(trackSheet);
+  const existingTracksById = {};
+  existingTracks.forEach(function (track) { existingTracksById[track.trackId] = track; });
   const seen = {};
   const imported = [];
   const seenAt = new Date();
@@ -139,7 +144,8 @@ function syncRetroRewindCatalog() {
         retiredAt: '',
         lastSeenAt: seenAt,
         category: sourceCategory_(sourceSheet.getName(), isWiiOriginal),
-        console: detectConsole_(name)
+        console: detectConsole_(name),
+        imageUrl: existingTracksById[trackId] ? existingTracksById[trackId].imageUrl || '' : ''
       });
     });
   });
@@ -148,9 +154,8 @@ function syncRetroRewindCatalog() {
     throw new Error('El catálogo devuelto tiene menos de cuatro pistas. No se ha modificado la hoja.');
   }
 
-  const sheet = getSheet_(SETTINGS.sheetNames.tracks);
-  ensureSheet_(SpreadsheetApp.getActiveSpreadsheet(), SETTINGS.sheetNames.tracks, SETTINGS.headers.Tracks);
-  const current = readRows_(sheet);
+  const sheet = trackSheet;
+  const current = existingTracks;
   const merged = imported.slice();
 
   current.forEach(function (oldTrack) {
@@ -166,7 +171,8 @@ function syncRetroRewindCatalog() {
       retiredAt: oldTrack.retiredAt || seenAt,
       lastSeenAt: oldTrack.lastSeenAt,
       category: oldTrack.category || (isTruthy_(oldTrack.isWiiOriginal) ? 'wii-original' : 'retro'),
-      console: oldTrack.console || detectConsole_(oldTrack.name)
+      console: oldTrack.console || detectConsole_(oldTrack.name),
+      imageUrl: oldTrack.imageUrl || ''
     });
   });
 
@@ -551,7 +557,7 @@ function buildPublicData_() {
       }
     },
     players: readRows_(getSheet_(SETTINGS.sheetNames.players)).map(function (row) {
-      return { id: row.playerId, displayName: row.displayName, color: row.color, active: isTruthy_(row.active) };
+      return { id: row.playerId, displayName: row.displayName, color: row.color, avatarUrl: row.avatarUrl || '', active: isTruthy_(row.active) };
     }),
     tracks: tracks.map(function (row) {
       return {
@@ -561,6 +567,7 @@ function buildPublicData_() {
         isWiiOriginal: isTruthy_(row.isWiiOriginal),
         category: row.category || (isTruthy_(row.isWiiOriginal) ? 'wii-original' : 'retro'),
         console: row.console || detectConsole_(row.name),
+        imageUrl: row.imageUrl || '',
         active: isTruthy_(row.active),
         retiredAt: row.retiredAt || ''
       };
@@ -705,6 +712,7 @@ function formatTrackSheet_(sheet) {
   const nameColumn = column('name');
   const categoryColumn = column('category');
   const consoleColumn = column('console');
+  const imageColumn = column('imageUrl');
   const activeColumn = column('active');
   const header = sheet.getRange(1, 1, 1, lastColumn);
 
@@ -771,6 +779,7 @@ function formatTrackSheet_(sheet) {
   if (nameColumn > 0) sheet.setColumnWidth(nameColumn, 220);
   if (categoryColumn > 0) sheet.setColumnWidth(categoryColumn, 115);
   if (consoleColumn > 0) sheet.setColumnWidth(consoleColumn, 95);
+  if (imageColumn > 0) sheet.setColumnWidth(imageColumn, 180);
   if (activeColumn > 0) sheet.setColumnWidth(activeColumn, 75);
   sheet.autoResizeColumns(1, Math.max(1, lastColumn));
   if (nameColumn > 0) sheet.setColumnWidth(nameColumn, 220);
