@@ -1,8 +1,12 @@
-# Rewind TT
+![image](./media/RewindTT.png)
 
-Página pública para una competición mensual de time trials de Mario Kart Wii / Retro Rewind.
+Página para una competición mensual de time trials de Mario Kart Wii / Retro Rewind.
 
-La web es estática y no contiene credenciales. La hoja de Google Sheets es la fuente de datos; el Apps Script sincroniza el catálogo, genera temporadas, procesa formularios y sirve un endpoint JSONP para GitHub Pages.
+![image](./media/0-FrontPage.png)
+![image](./media/1-Pistas.png)
+![image](./media/2-Puntuacion.png)
+
+La web es estática y no contiene credenciales. Una hoja de Google Sheets es la fuente de datos; el Apps Script sincroniza el catálogo, genera temporadas, procesa formularios y sirve un endpoint JSONP para GitHub Pages.
 
 ## Arranque rápido
 
@@ -105,6 +109,8 @@ La columna `verified` de `Times` se prepara como `PENDING`. La web sigue contand
 
 ## Panel de revisión
 
+![image](./media/RevisionTiempos.png)
+
 `Rewind TT > Abrir panel de revisión` abre un panel privado dentro de Google Sheets. Solo pueden abrirlo los editores de la hoja (los administradores).
 
 El panel muestra los envíos de `Times` con filtros:
@@ -139,6 +145,8 @@ La web calcula estos puntos por pista:
 Completar las cuatro pistas suma `2` puntos. Los empates reciben la misma puntuación. En la clasificación visual, el desempate secundario es número de victorias y después tiempo acumulado.
 
 ## Perfiles y presentación
+
+![image](./media/3-Perfil.png)
 
 La web incluye una vista de perfil seleccionable por jugador con avatar, puntos del mes, puntos generales, victorias, pendientes y mejores marcas del mes. El avatar se configura con `Players.avatarUrl`; debe ser una URL de imagen accesible desde el navegador. Las tarjetas de pistas muestran consola, categoría, 150/200cc, pista estrella y una composición gráfica generada por consola.
 
