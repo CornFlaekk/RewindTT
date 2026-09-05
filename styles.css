@@ -785,7 +785,7 @@ button {
 }
 
 .leaderboard-head {
-  min-height: 47px;
+  min-height: 56px;
   padding: 0 22px;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
@@ -810,7 +810,7 @@ button {
 }
 
 .leaderboard-row {
-  min-height: 78px;
+  min-height: 92px;
   padding: 0 22px;
   border-bottom: 1px solid var(--line);
 }
