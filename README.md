@@ -103,13 +103,24 @@ Los correos nunca se incluyen en el JSON público que consume GitHub Pages. Los 
 
 La columna `verified` de `Times` se prepara como `PENDING`. La web sigue contando esos tiempos, pero los marca visualmente como `pendiente`; los tiempos `REJECTED` no cuentan.
 
+## Panel de revisión
+
+`Rewind TT > Abrir panel de revisión` abre un panel privado dentro de Google Sheets. Solo pueden abrirlo los editores de la hoja (los administradores).
+
+El panel muestra los envíos de `Times` con filtros:
+
+- Pendientes, Aprobados, Rechazados o Todos.
+- Filtro por jugador.
+
+Cada fila incluye jugador, pista, CC, tiempo, enlace a la captura y estado. Los botones `Aprobar` y `Rechazar` cambian `verified` al instante. No requiere despliegue adicional ni permisos nuevos: funciona dentro de la misma hoja.
+
 ## Operación habitual
 
 1. Añade o modifica jugadores en `Players`.
 2. Si ha cambiado el catálogo, ejecuta `Sincronizar catálogo Retro Rewind`.
 3. Si la automatización está instalada, el día 1 genera la temporada y actualiza el formulario automáticamente. Si no, ejecuta `Generar temporada actual` y `Actualizar opciones del formulario` manualmente.
 4. Durante el mes, los jugadores envían sus mejores tiempos.
-5. Revisa `Times` y `Errors` si hay algún envío dudoso.
+5. Revisa los envíos desde el panel de revisión o desde `Errors` si hay alguno dudoso.
 6. El último día del mes a las 23:59 dejan de aceptarse nuevos tiempos.
 
 ## Puntuación
@@ -155,7 +166,6 @@ Después visita `http://localhost:8000`. Mientras `config.js` use `data/demo.jso
 
 ### Competición
 
-- Añadir un panel de revisión de envíos pendientes.
 - Permitir editar o anular un tiempo manteniendo un registro de cambios.
 
 ### Automatización

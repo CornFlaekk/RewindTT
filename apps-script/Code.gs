@@ -59,9 +59,74 @@ function onOpen() {
     .addItem('Crear formulario de tiempos', 'setupSubmissionForm')
     .addItem('Actualizar opciones del formulario', 'refreshSubmissionForm')
     .addItem('Crear formulario de avatar', 'setupAvatarForm')
+    .addSeparator()
+    .addItem('Abrir panel de revisión', 'openReviewPanel')
     .addItem('Instalar sincronización diaria', 'installAutomation')
     .addItem('Ejecutar automatización mensual ahora', 'runMonthlyAutomation')
     .addToUi();
+}
+
+function openReviewPanel() {
+  const html = HtmlService.createHtmlOutput(buildReviewPanelHtml_())
+    .setWidth(960)
+    .setHeight(720);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Rewind TT / Revisión de tiempos');
+}
+
+function listReviewSubmissions(filter) {
+  const times = readRows_(getSheet_(SETTINGS.sheetNames.times));
+  const players = readRows_(getSheet_(SETTINGS.sheetNames.players));
+  const tracks = readRows_(getSheet_(SETTINGS.sheetNames.tracks));
+  const playersById = {};
+  players.forEach(function (player) { playersById[player.playerId] = player; });
+  const tracksById = {};
+  tracks.forEach(function (track) { tracksById[track.trackId] = track; });
+
+  const status = String(filter || 'PENDING').toUpperCase();
+  return times
+    .filter(function (time) {
+      if (status === 'ALL') return true;
+      return String(time.verified || '').toUpperCase() === status;
+    })
+    .map(function (time) {
+      return {
+        submittedAt: time.submittedAt instanceof Date ? time.submittedAt.toISOString() : String(time.submittedAt || ''),
+        seasonId: time.seasonId,
+        trackName: tracksById[time.trackId] ? tracksById[time.trackId].name : time.trackId,
+        playerName: playersById[time.playerId] ? playersById[time.playerId].displayName : time.playerId,
+        cc: time.cc,
+        timeMs: time.timeMs,
+        proofUrl: time.proofUrl || '',
+        verified: time.verified || 'PENDING'
+      };
+    });
+}
+
+function setReviewStatus(submittedAt, seasonId, trackId, playerId, timeMs, status) {
+  const sheet = getSheet_(SETTINGS.sheetNames.times);
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const column = function (name) { return headers.indexOf(name) + 1; };
+  const submittedAtColumn = column('submittedAt');
+  const seasonColumn = column('seasonId');
+  const trackColumn = column('trackId');
+  const playerColumn = column('playerId');
+  const timeColumn = column('timeMs');
+  const verifiedColumn = column('verified');
+  if (!verifiedColumn) throw new Error('Times no tiene la columna verified.');
+
+  for (let rowNumber = 2; rowNumber <= sheet.getLastRow(); rowNumber++) {
+    const rowSubmitted = dateValue_(sheet.getRange(rowNumber, submittedAtColumn).getValue());
+    const matchSubmitted = submittedAtColumn ? String(rowSubmitted) === String(submittedAt) : false;
+    const matchSeason = seasonColumn ? String(normalizeSheetValue_('seasonId', sheet.getRange(rowNumber, seasonColumn).getValue())) === String(seasonId) : false;
+    const matchTrack = trackColumn ? String(normalizeSheetValue_('trackId', sheet.getRange(rowNumber, trackColumn).getValue())) === String(trackId) : false;
+    const matchPlayer = playerColumn ? String(normalizeSheetValue_('playerId', sheet.getRange(rowNumber, playerColumn).getValue())) === String(playerId) : false;
+    const matchTime = timeColumn ? Number(sheet.getRange(rowNumber, timeColumn).getValue()) === Number(timeMs) : false;
+    if (matchSubmitted && matchSeason && matchTrack && matchPlayer && matchTime) {
+      sheet.getRange(rowNumber, verifiedColumn).setValue(String(status).toUpperCase());
+      return;
+    }
+  }
+  throw new Error('No se ha encontrado el envío para actualizar.');
 }
 
 function setupWorkbook() {
@@ -1068,4 +1133,63 @@ function removeTriggers_(functionName) {
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
     if (trigger.getHandlerFunction() === functionName) ScriptApp.deleteTrigger(trigger);
   });
+}
+
+function buildReviewPanelHtml_() {
+  return [
+    '<!doctype html><html><head><base target="_top"><meta charset="utf-8">',
+    '<style>',
+    '*{box-sizing:border-box}body{margin:0;padding:24px;background:#101018;color:#f2f0e8;font-family:system-ui,-apple-system,Segoe UI,sans-serif}',
+    'h1{margin:0 0 4px;font-size:20px;letter-spacing:-.02em}h1 span{color:#d7ff4f}.sub{color:#92919b;font-size:12px;margin:0 0 18px}',
+    '.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}',
+    '.tab{border:1px solid rgba(245,244,237,.16);background:#171720;color:#92919b;padding:7px 12px;font-size:12px;cursor:pointer;border-radius:4px}',
+    '.tab.active{background:#d7ff4f;color:#101018;border-color:#d7ff4f}',
+    'select{background:#171720;border:1px solid rgba(245,244,237,.16);color:#f2f0e8;padding:7px 10px;font-size:12px;border-radius:4px}',
+    'table{width:100%;border-collapse:collapse;font-size:12.5px}',
+    'th{text-align:left;color:#92919b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid rgba(245,244,237,.16)}',
+    'td{padding:10px;border-bottom:1px solid rgba(245,244,237,.08);vertical-align:top}',
+    'tr:hover td{background:rgba(215,255,79,.03)}',
+    '.time{font-family:ui-monospace,monospace;color:#d7ff4f}',
+    '.badge{display:inline-block;padding:3px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;border-radius:3px}',
+    '.b-pending{background:rgba(255,200,87,.15);color:#ffc857}.b-approved{background:rgba(167,220,150,.15);color:#a7dc96}.b-rejected{background:rgba(255,107,157,.15);color:#ff6b9d}',
+    'a.proof{color:#65d7ff;text-decoration:none;font-size:12px}a.proof:hover{text-decoration:underline}',
+    '.actions{display:flex;gap:6px}.btn{border:0;padding:6px 10px;font-size:11px;border-radius:4px;cursor:pointer}',
+    '.btn-ok{background:#a7dc96;color:#101018}.btn-no{background:#ff6b9d;color:#101018}.btn:hover{filter:brightness(1.1)}',
+    '.empty{color:#92919b;text-align:center;padding:40px 0;font-size:13px}',
+    '</style></head><body>',
+    '<h1>Revisión de <span>tiempos</span></h1><p class="sub">Aprobar o rechazar envíos pendientes. Los cambios se guardan al instante en la hoja.</p>',
+    '<div class="bar">',
+    '<button class="tab active" data-filter="PENDING">Pendientes</button>',
+    '<button class="tab" data-filter="APPROVED">Aprobados</button>',
+    '<button class="tab" data-filter="REJECTED">Rechazados</button>',
+    '<button class="tab" data-filter="ALL">Todos</button>',
+    '<select id="player-filter"><option value="">Todos los jugadores</option></select>',
+    '</div>',
+    '<table><thead><tr><th>Hora</th><th>Jugador</th><th>Pista</th><th>CC</th><th>Tiempo</th><th>Prueba</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="rows"></tbody></table>',
+    '<div id="empty" class="empty" style="display:none">No hay envíos para este filtro.</div>',
+    '<script>',
+    'var currentFilter="PENDING";var currentPlayer="";var rows=[];',
+    'function load(){google.script.run.withSuccessHandler(onLoad).listReviewSubmissions(currentFilter);}',
+    'function onLoad(data){rows=data;renderPlayers();render();}',
+    'function renderPlayers(){var sel=document.getElementById("player-filter");var seen={};sel.innerHTML=\'<option value="">Todos los jugadores</option>\';rows.forEach(function(r){if(seen[r.playerName])return;seen[r.playerName]=1;var o=document.createElement("option");o.value=r.playerName;o.textContent=r.playerName;sel.appendChild(o);});sel.value=currentPlayer;}',
+    'function render(){var tbody=document.getElementById("rows");var empty=document.getElementById("empty");tbody.innerHTML="";var list=rows.filter(function(r){return !currentPlayer||r.playerName===currentPlayer;});empty.style.display=list.length?"none":"block";list.forEach(function(r){var tr=document.createElement("tr");tr.innerHTML=',
+    '\'<td>\'+esc(r.submittedAt.slice(0,16).replace("T"," "))+\'</td>\'+',
+    '\'<td>\'+esc(r.playerName)+\'</td>\'+',
+    '\'<td>\'+esc(r.trackName)+\'</td>\'+',
+    '\'<td>\'+r.cc+\'</td>\'+',
+    '\'<td class="time">\'+formatMs(r.timeMs)+\'</td>\'+',
+    '\'<td>\'+proofLink(r.proofUrl)+\'</td>\'+',
+    '\'<td><span class="badge b-\'+r.verified.toLowerCase()+\'">\'+esc(r.verified)+\'</span></td>\'+',
+    '\'<td><div class="actions">\'+actionBtn(r,"APPROVED","Aprobar","btn-ok")+actionBtn(r,"REJECTED","Rechazar","btn-no")+\'</div></td>\';',
+    'tbody.appendChild(tr);});}',
+    'function proofLink(url){if(!url)return "—";var first=url.split(",")[0].trim();return \'<a class="proof" href="\'+first+\'" target="_blank">Ver prueba ↗</a>\';}',
+    'function actionBtn(r,status,label,cls){return \'<button class="btn \'+cls+\'" data-idx="\'+rows.indexOf(r)+\'" data-status="\'+status+\'">\'+label+\'</button>\';}',
+    'function formatMs(ms){ms=Number(ms);var m=Math.floor(ms/60000);var s=Math.floor((ms%60000)/1000);var mm=Math.floor(ms%1000);return m+":"+String(s).padStart(2,"0")+"."+String(mm).padStart(3,"0");}',
+    'function esc(v){return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}',
+    'document.querySelectorAll(".tab").forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll(".tab").forEach(function(x){x.classList.remove("active");});b.classList.add("active");currentFilter=b.dataset.filter;currentPlayer="";load();});});',
+    'document.getElementById("player-filter").addEventListener("change",function(e){currentPlayer=e.target.value;render();});',
+    'document.getElementById("rows").addEventListener("click",function(e){var btn=e.target.closest("button[data-status]");if(!btn)return;var r=rows[Number(btn.dataset.idx)];if(!r)return;btn.disabled=true;google.script.run.withSuccessHandler(function(){load();}).withFailureHandler(function(){btn.disabled=false;}).setReviewStatus(r.submittedAt,r.seasonId,r.trackId,r.playerId,r.timeMs,btn.dataset.status);});',
+    'load();',
+    '</script></body></html>'
+  ].join('\n');
 }
