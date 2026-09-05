@@ -785,7 +785,7 @@ button {
 }
 
 .leaderboard-head {
-  min-height: 56px;
+  min-height: 47px;
   padding: 0 22px;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
@@ -810,8 +810,8 @@ button {
 }
 
 .leaderboard-row {
-  min-height: 92px;
-  padding: 0 22px;
+  min-height: 96px;
+  padding: 14px 22px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1436,8 +1436,8 @@ button {
   }
 
   .leaderboard-row {
-    min-height: 72px;
-    padding-inline: 13px;
+    min-height: 84px;
+    padding: 12px 13px;
   }
 
   .player-avatar {
