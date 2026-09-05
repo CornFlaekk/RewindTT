@@ -92,6 +92,8 @@ function listReviewSubmissions(filter) {
       return {
         submittedAt: time.submittedAt instanceof Date ? time.submittedAt.toISOString() : String(time.submittedAt || ''),
         seasonId: time.seasonId,
+        trackId: time.trackId,
+        playerId: time.playerId,
         trackName: tracksById[time.trackId] ? tracksById[time.trackId].name : time.trackId,
         playerName: playersById[time.playerId] ? playersById[time.playerId].displayName : time.playerId,
         cc: time.cc,
