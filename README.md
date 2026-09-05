@@ -14,7 +14,7 @@ La web es estática y no contiene credenciales. La hoja de Google Sheets es la f
 
    `playerId | displayName | color | active | joinedAt | email | avatarUrl`
 
-   Ejemplo: `roy | Roy | #d7ff4f | TRUE | 2026-09-04 | roy@example.com | https://.../roy.png`.
+   Ejemplo: `player | Player | #d7ff4f | TRUE | 2026-09-04 | player@example.com | https://.../player.png`.
 
 6. Ejecuta `Rewind TT > Sincronizar catálogo Retro Rewind`.
 7. Ejecuta `Rewind TT > Generar temporada actual`.
@@ -156,28 +156,10 @@ Después visita `http://localhost:8000`. Mientras `config.js` use `data/demo.jso
 
 ## Mejoras pendientes
 
-### Prioridad alta
-
-- Activar y verificar GitHub Pages con datos reales.
-- Hacer una prueba completa con un correo autorizado y otro no autorizado.
-- Proteger rangos administrativos de Google Sheets para evitar cambios accidentales.
-- Comprobar que el trigger instalable `onFormSubmit` está activo.
-- Revisar manualmente el modo de correo verificado del formulario.
-
-### Competición
-
-- Permitir editar o anular un tiempo manteniendo un registro de cambios.
-
 ### Automatización
 
 - Crear recordatorio mensual en Google Calendar.
 - Añadir avisos por Discord o Telegram.
-
-### Web
-
-- Añadir estadísticas de mejora, rachas y récords personales.
-- Crear una página de enfrentamientos directos.
-- Añadir filtros por mes, consola y categoría.
 
 ### Reglas y diversión
 
@@ -186,9 +168,3 @@ Después visita `http://localhost:8000`. Mientras `config.js` use `data/demo.jso
 - Añadir una pista comodín o sorpresa configurable.
 - Añadir temporadas trimestrales o anuales.
 - Permitir reglas especiales para meses de 200cc.
-
-### Evolución técnica
-
-- Separar los datos públicos y administrativos en hojas distintas.
-- Añadir copias de seguridad automáticas de la hoja.
-- Migrar a autenticación y base de datos propias si la competición crece mucho.
