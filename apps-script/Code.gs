@@ -55,6 +55,7 @@ function onOpen() {
     .addItem('Generar temporada actual', 'generateCurrentSeason')
     .addItem('Regenerar temporada actual (limpia)', 'resetCurrentSeason')
     .addItem('Generar temporada siguiente', 'generateNextSeason')
+    .addItem('Eliminar temporada...', 'deleteSeasonDialog')
     .addSeparator()
     .addItem('Crear formulario de tiempos', 'setupSubmissionForm')
     .addItem('Actualizar opciones del formulario', 'refreshSubmissionForm')
@@ -283,6 +284,49 @@ function resetCurrentSeason() {
   generateSeason_(current[0], current[1] - 1, true);
 
   if (getConfig_().FORM_ID) refreshSubmissionForm();
+}
+
+function deleteSeasonDialog() {
+  const ui = SpreadsheetApp.getUi();
+  const seasons = readRows_(getSheet_(SETTINGS.sheetNames.seasons)).map(function (row) { return row.seasonId; }).filter(Boolean);
+  if (!seasons.length) {
+    ui.alert('No hay temporadas para eliminar.');
+    return;
+  }
+
+  const seasonId = ui.prompt(
+    'Eliminar temporada',
+    'Escribe el identificador de la temporada a eliminar. Disponibles: ' + seasons.join(', ') + '\n\nSe borrarán la temporada, sus pistas del sorteo y todos sus tiempos.',
+    ui.ButtonSet.OK_CANCEL
+  );
+  const input = seasonId && seasonId.getResponseText() ? String(seasonId.getResponseText()).trim() : '';
+  if (!input || seasonId.getSelectedButton() !== ui.Button.OK) return;
+
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input)) {
+    ui.alert('Formato no válido. Usa AAAA-MM, por ejemplo 2026-10.');
+    return;
+  }
+
+  const seasonSheet = getSheet_(SETTINGS.sheetNames.seasons);
+  const seasonExists = readRows_(seasonSheet).some(function (row) { return row.seasonId === input; });
+  if (!seasonExists) {
+    ui.alert('La temporada ' + input + ' no existe.');
+    return;
+  }
+
+  const confirmation = ui.alert(
+    'Confirmar eliminación',
+    'Se eliminará definitivamente la temporada ' + input + ', sus pistas del sorteo y sus tiempos. Esta acción no se puede deshacer. ¿Continuar?',
+    ui.ButtonSet.YES_NO
+  );
+  if (confirmation !== ui.Button.YES) return;
+
+  deleteRowsByValue_(getSheet_(SETTINGS.sheetNames.times), 'seasonId', input);
+  deleteRowsByValue_(getSheet_(SETTINGS.sheetNames.seasonTracks), 'seasonId', input);
+  deleteRowsByValue_(seasonSheet, 'seasonId', input);
+
+  if (getConfig_().FORM_ID) refreshSubmissionForm();
+  ui.alert('Temporada ' + input + ' eliminada.');
 }
 
 function generateNextSeason() {
